@@ -1,8 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Text, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 
+import { useI18n } from '../../i18n';
 import type { Candidate } from '../../services/candidates';
+import { useAppTheme } from '../../theme';
+import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { PressableScale } from '../ui/PressableScale';
 import { CandidateCard } from './CandidateCard';
 import { SwapCard, type ExitVector, type SwapDirection, type SwapEvent } from './SwapCard';
 
@@ -11,37 +16,40 @@ type CandidateCardSwapProps = {
   /** Upper bound; the card shrinks to fit narrower containers. */
   maxCardWidth?: number;
   cardHeight?: number;
-  /** How many cards are drawn in the stack, including the front one. */
+  /** How many cards are drawn in the deck, including the front one. */
   visibleCount?: number;
-  /** Horizontal and vertical step between stacked cards. */
-  offsetX?: number;
-  offsetY?: number;
-  skewDeg?: number;
+  /** How much of each back card shows above the one in front. */
+  peek?: number;
   onActiveCandidateChange?: (candidate: Candidate, index: number) => void;
+  onShortlist?: (candidate: Candidate) => void;
+  onSkip?: (candidate: Candidate) => void;
 };
 
+/** 3D deck of candidate cards: Skip flings the front card left, Shortlist flings it right. */
 export function CandidateCardSwap({
   candidates,
   maxCardWidth = 360,
   cardHeight = 500,
   visibleCount = 4,
-  offsetX = 22,
-  offsetY = 26,
-  skewDeg = 3,
+  peek = 16,
   onActiveCandidateChange,
+  onShortlist,
+  onSkip,
 }: CandidateCardSwapProps) {
+  const { t } = useI18n();
+  const { palette } = useAppTheme();
   const [containerWidth, setContainerWidth] = useState(0);
   const [frontIndex, setFrontIndex] = useState(0);
   const [lastSwap, setLastSwap] = useState<SwapEvent>({ direction: 'next' });
+  const [shortlistedIds, setShortlistedIds] = useState<string[]>([]);
 
   const total = candidates.length;
   const activeIndex = total > 0 ? frontIndex % total : 0;
   const stackCount = Math.max(Math.min(visibleCount, total), 1);
   const stackDepth = stackCount - 1;
-  // Tighten the fan on narrow screens so the front card keeps most of the width.
-  const stepX = Math.min(offsetX, containerWidth * 0.05);
-  const cardWidth = Math.min(maxCardWidth, containerWidth - stackDepth * stepX);
+  const cardWidth = Math.min(maxCardWidth, containerWidth);
   const canSwap = total > 1;
+  const current = candidates[activeIndex];
 
   const swapTo = useCallback(
     (direction: SwapDirection, exit?: ExitVector) => {
@@ -54,7 +62,30 @@ export function CandidateCardSwap({
     [activeIndex, candidates, onActiveCandidateChange, total],
   );
 
-  const handleSwipe = useCallback((exit: ExitVector) => swapTo('next', exit), [swapTo]);
+  const skip = useCallback(
+    (exit?: ExitVector) => {
+      if (current) onSkip?.(current);
+      swapTo('next', exit ?? { x: -cardWidth * 1.5, y: cardHeight * 0.1 });
+    },
+    [cardHeight, cardWidth, current, onSkip, swapTo],
+  );
+
+  const shortlist = useCallback(
+    (exit?: ExitVector) => {
+      if (current) {
+        setShortlistedIds((ids) => (ids.includes(current.id) ? ids : [...ids, current.id]));
+        onShortlist?.(current);
+      }
+      swapTo('next', exit ?? { x: cardWidth * 1.5, y: cardHeight * 0.1 });
+    },
+    [cardHeight, cardWidth, current, onShortlist, swapTo],
+  );
+
+  // Swipe right to shortlist, left to skip.
+  const handleSwipe = useCallback(
+    (exit: ExitVector) => (exit.x > 0 ? shortlist(exit) : skip(exit)),
+    [shortlist, skip],
+  );
 
   const handleLayout = (event: LayoutChangeEvent) => {
     setContainerWidth(event.nativeEvent.layout.width);
@@ -62,27 +93,25 @@ export function CandidateCardSwap({
 
   if (total === 0) {
     return (
-      <View className="w-full items-center rounded-3xl border border-dashed border-slate-300 bg-white/60 px-6 py-12">
-        <Ionicons name="people-outline" size={28} color="#94A3B8" />
-        <Text className="mt-3 text-base font-semibold text-slate-700">No matched candidates yet</Text>
-        <Text className="mt-1 text-center text-sm text-slate-500">
-          The Matching Agent will surface CVs here as soon as they are screened.
+      <View className="w-full items-center rounded-3xl border border-dashed border-slate-300 bg-white/60 px-6 py-12 dark:border-white/15 dark:bg-white/5">
+        <Ionicons name="people-outline" size={28} color={palette.icon.faint} />
+        <Text className="mt-3 text-base font-semibold text-slate-700 dark:text-slate-200">
+          {t.deck.emptyTitle}
         </Text>
+        <Text className="mt-1 text-center text-sm text-slate-500 dark:text-slate-400">{t.deck.emptyBody}</Text>
       </View>
     );
   }
+
+  const shortlistedCount = shortlistedIds.length;
 
   return (
     <View className="w-full items-center" onLayout={handleLayout}>
       {cardWidth > 0 && (
         <>
           <View
-            // Sits above the controls so a dropping card passes in front of them.
-            style={{
-              width: cardWidth + stackDepth * stepX,
-              height: cardHeight + stackDepth * offsetY,
-              zIndex: 1,
-            }}
+            // Sits above the controls so a flying card passes in front of them.
+            style={{ width: cardWidth, height: cardHeight + stackDepth * peek, zIndex: 1 }}
           >
             {candidates.map((candidate, index) => {
               const slot = (index - activeIndex + total) % total;
@@ -96,50 +125,83 @@ export function CandidateCardSwap({
                   swap={lastSwap}
                   width={cardWidth}
                   height={cardHeight}
-                  offsetX={stepX}
-                  offsetY={offsetY}
-                  skewDeg={skewDeg}
+                  peek={peek}
                   swipeEnabled={canSwap}
                   onSwipe={handleSwipe}
+                  stampLabels={{ skip: t.deck.stampSkip, shortlist: t.deck.stampShortlist }}
                 >
-                  <CandidateCard candidate={candidate} accentIndex={index} />
+                  <CandidateCard
+                    candidate={candidate}
+                    accentIndex={index}
+                    shortlisted={shortlistedIds.includes(candidate.id)}
+                  />
                 </SwapCard>
               );
             })}
           </View>
 
           <View
-            className="mt-8 flex-row items-center justify-between rounded-2xl border border-white/80 bg-white/70 p-2"
-            style={{ width: cardWidth + stackDepth * stepX }}
+            className="mt-6 gap-2 rounded-2xl border border-white/80 bg-white/70 p-2 dark:border-white/10 dark:bg-white/5"
+            style={{ width: cardWidth }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Previous candidate"
-              disabled={!canSwap}
-              onPress={() => swapTo('prev')}
-              className="h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white active:bg-slate-100 disabled:opacity-40"
-            >
-              <Ionicons name="arrow-back" size={18} color="#334155" />
-            </Pressable>
-
-            <View className="items-center">
-              <Text className="text-sm font-semibold text-slate-900">
+            <View className="flex-row items-center justify-between gap-3 px-2 pt-1">
+              <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {activeIndex + 1}
-                <Text className="font-normal text-slate-400"> / {total}</Text>
+                <Text className="font-normal text-slate-400 dark:text-slate-500"> / {total}</Text>
               </Text>
-              <Text className="text-xs text-slate-400">{canSwap ? 'Swipe or tap Next' : 'Only match'}</Text>
+              {shortlistedCount > 0 ? (
+                <Animated.View
+                  entering={ZoomIn.springify()}
+                  className="flex-row items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 dark:bg-emerald-500/15"
+                >
+                  <Ionicons name="checkmark-circle" size={13} color={palette.emerald} />
+                  <AnimatedNumber
+                    value={shortlistedCount}
+                    countUpOnMount={false}
+                    format={t.deck.shortlistedCount}
+                    className="text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                  />
+                </Animated.View>
+              ) : (
+                <Text className="shrink text-right text-xs text-slate-400 dark:text-slate-500">
+                  {canSwap ? t.deck.hint : t.deck.onlyMatch}
+                </Text>
+              )}
             </View>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Next candidate"
-              disabled={!canSwap}
-              onPress={() => swapTo('next')}
-              className="h-11 flex-row items-center gap-1.5 rounded-xl bg-indigo-600 px-5 active:bg-indigo-700 disabled:opacity-40"
-            >
-              <Text className="text-sm font-semibold text-white">Next</Text>
-              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-            </Pressable>
+            <View className="flex-row items-center gap-2">
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={t.deck.previous}
+                disabled={!canSwap}
+                onPress={() => swapTo('prev')}
+                className="h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white active:bg-slate-100 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:active:bg-white/10"
+              >
+                <Ionicons name="arrow-undo" size={18} color={palette.icon.strong} />
+              </PressableScale>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={current ? t.deck.skipA11y(current.name) : t.deck.skip}
+                disabled={!canSwap}
+                onPress={() => skip()}
+                className="h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 hover:bg-rose-50 active:bg-rose-50 disabled:opacity-40 dark:border-rose-400/30 dark:bg-rose-500/10 dark:hover:bg-rose-500/20"
+              >
+                <Ionicons name="close" size={18} color={palette.rose} />
+                <Text className="text-sm font-semibold text-rose-600 dark:text-rose-300">{t.deck.skip}</Text>
+              </PressableScale>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={current ? t.deck.shortlistA11y(current.name) : t.deck.shortlist}
+                onPress={() => shortlist()}
+                className="h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 hover:bg-emerald-700 active:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                style={{ boxShadow: '0px 8px 20px -8px rgba(16, 185, 129, 0.7)' }}
+              >
+                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                <Text className="text-sm font-semibold text-white" numberOfLines={1}>
+                  {t.deck.shortlist}
+                </Text>
+              </PressableScale>
+            </View>
           </View>
         </>
       )}
