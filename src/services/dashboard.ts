@@ -1,11 +1,15 @@
+import type { Localized } from '../i18n/types';
+
 export type CampaignHealth = 'on_track' | 'at_risk' | 'blocked';
+
+export type CampaignStage = 'sourcing' | 'screening' | 'interviewing' | 'offer';
 
 export type CampaignSummary = {
   id: string;
-  title: string;
-  department: string;
-  /** Current pipeline stage, e.g. "Screening". */
-  stage: string;
+  title: Localized;
+  department: Localized;
+  /** Current pipeline stage; the label comes from the dictionary. */
+  stage: CampaignStage;
   candidates: number;
   /** Percentages, 0–100. */
   matchRate: number;
@@ -40,9 +44,9 @@ const MOCK_SUMMARY: DashboardSummary = {
   campaigns: [
     {
       id: 'senior-frontend-engineer',
-      title: 'Senior Frontend Engineer',
-      department: 'Engineering',
-      stage: 'Screening',
+      title: { en: 'Senior Frontend Engineer', vi: 'Kỹ sư Frontend cấp cao' },
+      department: { en: 'Engineering', vi: 'Kỹ thuật' },
+      stage: 'screening',
       candidates: 64,
       matchRate: 42,
       targetMatchRate: 60,
@@ -50,9 +54,9 @@ const MOCK_SUMMARY: DashboardSummary = {
     },
     {
       id: 'product-designer',
-      title: 'Product Designer',
-      department: 'Design',
-      stage: 'Interviewing',
+      title: { en: 'Product Designer', vi: 'Nhà thiết kế sản phẩm' },
+      department: { en: 'Design', vi: 'Thiết kế' },
+      stage: 'interviewing',
       candidates: 41,
       matchRate: 71,
       targetMatchRate: 60,
@@ -60,9 +64,9 @@ const MOCK_SUMMARY: DashboardSummary = {
     },
     {
       id: 'data-engineer',
-      title: 'Data Engineer',
-      department: 'Data',
-      stage: 'Sourcing',
+      title: { en: 'Data Engineer', vi: 'Kỹ sư dữ liệu' },
+      department: { en: 'Data', vi: 'Dữ liệu' },
+      stage: 'sourcing',
       candidates: 18,
       matchRate: 33,
       targetMatchRate: 55,
@@ -70,9 +74,9 @@ const MOCK_SUMMARY: DashboardSummary = {
     },
     {
       id: 'customer-success-lead',
-      title: 'Customer Success Lead',
-      department: 'Operations',
-      stage: 'Offer',
+      title: { en: 'Customer Success Lead', vi: 'Trưởng nhóm Chăm sóc khách hàng' },
+      department: { en: 'Operations', vi: 'Vận hành' },
+      stage: 'offer',
       candidates: 27,
       matchRate: 78,
       targetMatchRate: 65,

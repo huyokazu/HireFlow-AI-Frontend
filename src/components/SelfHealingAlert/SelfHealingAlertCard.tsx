@@ -1,28 +1,44 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  LinearTransition,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+  ZoomIn,
+} from 'react-native-reanimated';
 
+import { useI18n } from '../../i18n';
 import type {
   AlertSeverity,
   BottleneckAlert,
   ImpactLevel,
   SuggestedFix,
 } from '../../services/selfHealing';
+import { useAppTheme } from '../../theme';
 import { formatRelativeTime } from '../../utils/formatters';
+import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { PressableScale } from '../ui/PressableScale';
+import { PulseGlow, PulseRing } from '../ui/pulse';
 import { SectionLabel } from '../ui/SectionLabel';
 import { TargetProgressBar } from '../ui/TargetProgressBar';
-import { PulseGlow, PulseRing } from '../ui/pulse';
 
 type ApprovalStatus = 'idle' | 'approving' | 'approved' | 'error';
 
+type ToneKey = AlertSeverity | 'resolved';
+
+type ThemedValue<T> = { light: T; dark: T };
+
 type Tone = {
-  eyebrow: string;
   icon: ComponentProps<typeof Ionicons>['name'];
-  iconColor: string;
-  glowColor: string;
-  wash: readonly [string, string];
+  iconColor: ThemedValue<string>;
+  glowColor: ThemedValue<string>;
+  wash: ThemedValue<readonly [string, string]>;
   borderClassName: string;
   iconBgClassName: string;
   textClassName: string;
@@ -31,66 +47,60 @@ type Tone = {
 };
 
 // Class names are spelled out in full so Tailwind can find them when it scans the source.
-const TONES: Record<AlertSeverity | 'resolved', Tone> = {
+const TONES: Record<ToneKey, Tone> = {
   critical: {
-    eyebrow: 'Bottleneck detected',
     icon: 'alert',
-    iconColor: '#E11D48',
-    glowColor: 'rgba(244, 63, 94, 0.5)',
-    wash: ['#FFF1F2', '#FFFFFF'],
-    borderClassName: 'border-rose-200',
-    iconBgClassName: 'bg-rose-100',
-    textClassName: 'text-rose-600',
-    chipClassName: 'border-rose-200 bg-rose-50',
-    barClassName: 'bg-rose-500',
+    iconColor: { light: '#E11D48', dark: '#FB7185' },
+    glowColor: { light: 'rgba(244, 63, 94, 0.5)', dark: 'rgba(244, 63, 94, 0.6)' },
+    wash: { light: ['#FFF1F2', '#FFFFFF'], dark: ['rgba(244, 63, 94, 0.16)', 'rgba(17, 24, 39, 0)'] },
+    borderClassName: 'border-rose-200 dark:border-rose-400/30',
+    iconBgClassName: 'bg-rose-100 dark:bg-rose-500/15',
+    textClassName: 'text-rose-600 dark:text-rose-300',
+    chipClassName: 'border-rose-200 bg-rose-50 dark:border-rose-400/30 dark:bg-rose-500/10',
+    barClassName: 'bg-rose-500 dark:bg-rose-400',
   },
   warning: {
-    eyebrow: 'Bottleneck risk',
     icon: 'warning',
-    iconColor: '#D97706',
-    glowColor: 'rgba(245, 158, 11, 0.45)',
-    wash: ['#FFFBEB', '#FFFFFF'],
-    borderClassName: 'border-amber-200',
-    iconBgClassName: 'bg-amber-100',
-    textClassName: 'text-amber-700',
-    chipClassName: 'border-amber-200 bg-amber-50',
-    barClassName: 'bg-amber-500',
+    iconColor: { light: '#D97706', dark: '#FBBF24' },
+    glowColor: { light: 'rgba(245, 158, 11, 0.45)', dark: 'rgba(245, 158, 11, 0.55)' },
+    wash: { light: ['#FFFBEB', '#FFFFFF'], dark: ['rgba(245, 158, 11, 0.14)', 'rgba(17, 24, 39, 0)'] },
+    borderClassName: 'border-amber-200 dark:border-amber-400/30',
+    iconBgClassName: 'bg-amber-100 dark:bg-amber-500/15',
+    textClassName: 'text-amber-700 dark:text-amber-300',
+    chipClassName: 'border-amber-200 bg-amber-50 dark:border-amber-400/30 dark:bg-amber-500/10',
+    barClassName: 'bg-amber-500 dark:bg-amber-400',
   },
   resolved: {
-    eyebrow: 'Fix in progress',
     icon: 'checkmark',
-    iconColor: '#059669',
-    glowColor: 'rgba(16, 185, 129, 0.4)',
-    wash: ['#ECFDF5', '#FFFFFF'],
-    borderClassName: 'border-emerald-200',
-    iconBgClassName: 'bg-emerald-100',
-    textClassName: 'text-emerald-700',
-    chipClassName: 'border-emerald-200 bg-emerald-50',
-    barClassName: 'bg-emerald-500',
+    iconColor: { light: '#059669', dark: '#34D399' },
+    glowColor: { light: 'rgba(16, 185, 129, 0.4)', dark: 'rgba(16, 185, 129, 0.55)' },
+    wash: { light: ['#ECFDF5', '#FFFFFF'], dark: ['rgba(16, 185, 129, 0.16)', 'rgba(17, 24, 39, 0)'] },
+    borderClassName: 'border-emerald-200 dark:border-emerald-400/30',
+    iconBgClassName: 'bg-emerald-100 dark:bg-emerald-500/15',
+    textClassName: 'text-emerald-700 dark:text-emerald-300',
+    chipClassName: 'border-emerald-200 bg-emerald-50 dark:border-emerald-400/30 dark:bg-emerald-500/10',
+    barClassName: 'bg-emerald-500 dark:bg-emerald-400',
   },
 };
 
 const IMPACT_STYLES: Record<
   ImpactLevel,
-  { label: string; dotClassName: string; chipClassName: string; textClassName: string }
+  { dotClassName: string; chipClassName: string; textClassName: string }
 > = {
   high: {
-    label: 'High impact',
-    dotClassName: 'bg-rose-500',
-    chipClassName: 'bg-rose-50',
-    textClassName: 'text-rose-700',
+    dotClassName: 'bg-rose-500 dark:bg-rose-400',
+    chipClassName: 'bg-rose-50 dark:bg-rose-500/15',
+    textClassName: 'text-rose-700 dark:text-rose-300',
   },
   medium: {
-    label: 'Medium impact',
-    dotClassName: 'bg-amber-500',
-    chipClassName: 'bg-amber-50',
-    textClassName: 'text-amber-700',
+    dotClassName: 'bg-amber-500 dark:bg-amber-400',
+    chipClassName: 'bg-amber-50 dark:bg-amber-500/15',
+    textClassName: 'text-amber-700 dark:text-amber-300',
   },
   low: {
-    label: 'Low impact',
-    dotClassName: 'bg-slate-400',
-    chipClassName: 'bg-slate-100',
-    textClassName: 'text-slate-600',
+    dotClassName: 'bg-slate-400 dark:bg-slate-500',
+    chipClassName: 'bg-slate-100 dark:bg-white/10',
+    textClassName: 'text-slate-600 dark:text-slate-300',
   },
 };
 
@@ -102,20 +112,46 @@ type SelfHealingAlertCardProps = {
   onApproveFix: (alert: BottleneckAlert, fix: SuggestedFix) => Promise<void>;
   /** Shows the close and "Not now" controls when provided. */
   onDismiss?: (alert: BottleneckAlert) => void;
+  /** Entrance delay, for staggering with other widgets. */
+  enterDelay?: number;
 };
 
-export function SelfHealingAlertCard({ alert, onApproveFix, onDismiss }: SelfHealingAlertCardProps) {
+export function SelfHealingAlertCard({
+  alert,
+  onApproveFix,
+  onDismiss,
+  enterDelay = 0,
+}: SelfHealingAlertCardProps) {
+  const { t, pick } = useI18n();
+  const { isDark, palette } = useAppTheme();
+  const reduceMotion = useReducedMotion();
+  const mode = isDark ? 'dark' : 'light';
+
   const defaultFix = alert.suggestedFixes.find((fix) => fix.recommended) ?? alert.suggestedFixes[0];
   const [selectedFixId, setSelectedFixId] = useState(defaultFix?.id);
   const [status, setStatus] = useState<ApprovalStatus>('idle');
 
   const selectedFix = alert.suggestedFixes.find((fix) => fix.id === selectedFixId);
-  const severityTone = TONES[alert.severity];
-  const tone = status === 'approved' ? TONES.resolved : severityTone;
-  const isLive = status !== 'approved';
+  const isApproved = status === 'approved';
   const isApproving = status === 'approving';
+  const isLive = !isApproved;
+  const severityTone = TONES[alert.severity];
+  const toneKey: ToneKey = isApproved ? 'resolved' : alert.severity;
+  const tone = TONES[toneKey];
+
   const { current, target } = alert.metric;
   const gapPercent = target > 0 ? Math.round((1 - current / target) * 100) : 0;
+  const lift = selectedFix?.expectedLift ?? 0;
+  // Once approved, the metric rolls from today's rate to the Digital Twin forecast.
+  const shownRate = isApproved ? Math.min(100, current + lift) : current;
+  const metricTone = isApproved ? TONES.resolved : severityTone;
+
+  // The green wash fades in over the severity wash instead of snapping.
+  const resolvedWash = useSharedValue(0);
+  useEffect(() => {
+    resolvedWash.value = withTiming(isApproved ? 1 : 0, { duration: reduceMotion ? 0 : 600 });
+  }, [isApproved, reduceMotion, resolvedWash]);
+  const resolvedWashStyle = useAnimatedStyle(() => ({ opacity: resolvedWash.value }));
 
   const handleApprove = async () => {
     if (!selectedFix || isApproving) return;
@@ -131,77 +167,108 @@ export function SelfHealingAlertCard({ alert, onApproveFix, onDismiss }: SelfHea
   const dismiss = onDismiss ? () => onDismiss(alert) : undefined;
 
   return (
-    <Animated.View entering={FadeInDown.duration(450)} style={styles.wrapper}>
-      <PulseGlow color={tone.glowColor} active={isLive} />
+    <Animated.View entering={FadeInDown.delay(enterDelay).duration(550)} style={styles.wrapper}>
+      {/* Two glows cross-fade: severity while the alert is live, emerald once a fix is approved. */}
+      <PulseGlow color={severityTone.glowColor[mode]} active={isLive} visible={isLive} fillColor={palette.card} />
+      <PulseGlow
+        color={TONES.resolved.glowColor[mode]}
+        active={false}
+        visible={isApproved}
+        fillColor={palette.card}
+      />
 
-      <View className={`overflow-hidden rounded-3xl border bg-white ${tone.borderClassName}`}>
-        <LinearGradient colors={tone.wash} style={styles.wash} />
+      <Animated.View
+        layout={reduceMotion ? undefined : LinearTransition.duration(320)}
+        className={`overflow-hidden rounded-3xl border bg-white dark:bg-gray-900 ${tone.borderClassName}`}
+      >
+        <LinearGradient colors={severityTone.wash[mode]} style={styles.wash} />
+        <Animated.View style={[styles.wash, resolvedWashStyle]}>
+          <LinearGradient colors={TONES.resolved.wash[mode]} style={StyleSheet.absoluteFill} />
+        </Animated.View>
 
         <View className="flex-row items-start gap-3 px-5 pb-4 pt-5" accessibilityRole="alert">
           <View className="items-center justify-center" style={{ width: ICON_SIZE, height: ICON_SIZE }}>
-            <PulseRing color={tone.iconColor} active={isLive} size={ICON_SIZE} />
+            <PulseRing color={tone.iconColor[mode]} active={isLive} size={ICON_SIZE} />
             <View
               className={`items-center justify-center rounded-full ${tone.iconBgClassName}`}
               style={{ width: ICON_SIZE, height: ICON_SIZE }}
             >
-              <Ionicons name={tone.icon} size={22} color={tone.iconColor} />
+              {/* Keyed so the new icon pops in when the alert resolves. */}
+              <Animated.View key={toneKey} entering={reduceMotion ? undefined : ZoomIn.springify()}>
+                <Ionicons name={tone.icon} size={22} color={tone.iconColor[mode]} />
+              </Animated.View>
             </View>
           </View>
 
           <View className="flex-1">
             <Text className={`text-xs font-semibold uppercase tracking-wider ${tone.textClassName}`}>
-              Self-healing · {tone.eyebrow}
+              {t.alert.selfHealing} · {t.alert.eyebrow[toneKey]}
             </Text>
-            <Text className="mt-1 text-lg font-bold leading-6 text-slate-900">{alert.title}</Text>
-            <Text className="mt-1 text-sm text-slate-500">
-              {alert.campaignName} · Detected {formatRelativeTime(alert.detectedAt)}
+            <Text className="mt-1 text-lg font-bold leading-6 text-slate-900 dark:text-white">
+              {pick(alert.title)}
+            </Text>
+            <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {t.alert.detected(pick(alert.campaignName), formatRelativeTime(alert.detectedAt, t.time))}
             </Text>
           </View>
 
           {dismiss && (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
-              accessibilityLabel="Close alert"
+              accessibilityLabel={t.alert.close}
               onPress={dismiss}
               hitSlop={8}
-              className="h-8 w-8 items-center justify-center rounded-full active:bg-slate-100"
+              pressedScale={0.88}
+              className="h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 active:bg-slate-100 dark:hover:bg-white/10 dark:active:bg-white/10"
             >
-              <Ionicons name="close" size={18} color="#64748B" />
-            </Pressable>
+              <Ionicons name="close" size={18} color={palette.icon.muted} />
+            </PressableScale>
           )}
         </View>
 
-        <View className="mx-5 rounded-2xl border border-slate-200/70 bg-white/80 p-4">
+        <View className="mx-5 rounded-2xl border border-slate-200/70 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
           <View className="flex-row items-center justify-between gap-2">
-            <SectionLabel>{alert.metric.label}</SectionLabel>
-            <View className={`rounded-full border px-2 py-0.5 ${severityTone.chipClassName}`}>
-              <Text className={`text-xs font-semibold ${severityTone.textClassName}`}>
-                {gapPercent}% below target
+            <SectionLabel>{isApproved ? t.alert.forecastLabel : pick(alert.metric.label)}</SectionLabel>
+            <View className={`rounded-full border px-2 py-0.5 ${metricTone.chipClassName}`}>
+              <Text className={`text-xs font-semibold ${metricTone.textClassName}`}>
+                {isApproved ? t.alert.forecastChip(lift) : t.alert.belowTarget(gapPercent)}
               </Text>
             </View>
           </View>
           <View className="mt-2 flex-row items-baseline gap-1.5">
-            <Text className="text-3xl font-bold text-slate-900">{current}%</Text>
-            <Text className="text-sm text-slate-500">vs {target}% target</Text>
+            <AnimatedNumber
+              value={shownRate}
+              format={(value) => `${value}%`}
+              delay={enterDelay + 200}
+              className="text-3xl font-bold text-slate-900 dark:text-white"
+            />
+            <Text className="text-sm text-slate-500 dark:text-slate-400">{t.alert.vsTarget(target)}</Text>
           </View>
           <View className="mt-3">
-            <TargetProgressBar value={current} target={target} barClassName={severityTone.barClassName} />
+            <TargetProgressBar
+              value={shownRate}
+              target={target}
+              barClassName={metricTone.barClassName}
+              delay={enterDelay + 200}
+            />
           </View>
         </View>
 
         <View className="px-5 pt-5">
           <View className="flex-row items-center justify-between gap-2">
-            <View className="flex-row items-center gap-1.5">
-              <Ionicons name="sparkles" size={14} color="#6366F1" />
-              <Text className="text-xs font-semibold uppercase tracking-wider text-indigo-600">
-                AI root cause analysis
+            <View className="shrink flex-row items-center gap-1.5">
+              <Ionicons name="sparkles" size={14} color={palette.indigo} />
+              <Text className="shrink text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-300">
+                {t.alert.rootCause}
               </Text>
             </View>
-            <Text className="text-xs font-medium text-slate-500">
-              {alert.rootCause.confidence}% confidence
+            <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {t.alert.confidence(alert.rootCause.confidence)}
             </Text>
           </View>
-          <Text className="mt-2 text-sm leading-5 text-slate-600">{alert.rootCause.summary}</Text>
+          <Text className="mt-2 text-sm leading-5 text-slate-600 dark:text-slate-300">
+            {pick(alert.rootCause.summary)}
+          </Text>
 
           <View className="mt-3 gap-2">
             {alert.rootCause.factors.map((factor) => {
@@ -209,19 +276,23 @@ export function SelfHealingAlertCard({ alert, onApproveFix, onDismiss }: SelfHea
               return (
                 <View
                   key={factor.id}
-                  className="flex-row gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3"
+                  className="flex-row gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/5"
                 >
                   <View className={`mt-1.5 h-2 w-2 rounded-full ${impact.dotClassName}`} />
                   <View className="flex-1">
                     <View className="flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                      <Text className="text-sm font-semibold text-slate-800">{factor.label}</Text>
+                      <Text className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                        {pick(factor.label)}
+                      </Text>
                       <View className={`rounded-full px-2 py-0.5 ${impact.chipClassName}`}>
                         <Text className={`text-[11px] font-semibold ${impact.textClassName}`}>
-                          {impact.label}
+                          {t.alert.impact[factor.impact]}
                         </Text>
                       </View>
                     </View>
-                    <Text className="mt-0.5 text-sm leading-5 text-slate-500">{factor.detail}</Text>
+                    <Text className="mt-0.5 text-sm leading-5 text-slate-500 dark:text-slate-400">
+                      {pick(factor.detail)}
+                    </Text>
                   </View>
                 </View>
               );
@@ -229,38 +300,42 @@ export function SelfHealingAlertCard({ alert, onApproveFix, onDismiss }: SelfHea
           </View>
         </View>
 
-        {status === 'approved' && selectedFix ? (
-          <Animated.View entering={FadeIn.duration(300)}>
-            <View className="mx-5 mt-5 flex-row gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <Ionicons name="checkmark-circle" size={22} color="#059669" />
+        {isApproved && selectedFix ? (
+          <Animated.View key="approved" entering={reduceMotion ? undefined : FadeInDown.springify().damping(16)}>
+            <View
+              className="mx-5 mt-5 flex-row gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-400/25 dark:bg-emerald-500/10"
+              style={{ boxShadow: palette.shadow.agentGlow }}
+            >
+              <Animated.View entering={reduceMotion ? undefined : ZoomIn.delay(150).springify()}>
+                <Ionicons name="checkmark-circle" size={22} color={palette.emerald} />
+              </Animated.View>
               <View className="flex-1">
-                <Text className="text-sm font-semibold text-emerald-900">
-                  Fix approved: {selectedFix.actionLabel}
+                <Text className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                  {t.alert.approvedTitle(pick(selectedFix.actionLabel))}
                 </Text>
-                <Text className="mt-1 text-sm leading-5 text-emerald-800">
-                  The Orchestrator Agent is applying the change and will re-run matching. Forecast:{' '}
-                  {selectedFix.expectedImpact}.
+                <Text className="mt-1 text-sm leading-5 text-emerald-800 dark:text-emerald-300/90">
+                  {t.alert.approvedBody(selectedFix.expectedLift)}
                 </Text>
               </View>
             </View>
             {dismiss ? (
               <Footer>
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   onPress={dismiss}
-                  className="h-11 flex-1 items-center justify-center rounded-xl bg-slate-900 px-4 active:bg-slate-800"
+                  className="h-11 flex-1 items-center justify-center rounded-xl bg-slate-900 px-4 active:bg-slate-800 dark:bg-white/10 dark:active:bg-white/15"
                 >
-                  <Text className="text-sm font-semibold text-white">Done</Text>
-                </Pressable>
+                  <Text className="text-sm font-semibold text-white">{t.alert.done}</Text>
+                </PressableScale>
               </Footer>
             ) : (
               <View className="h-5" />
             )}
           </Animated.View>
         ) : (
-          <>
+          <View key="pending">
             <View className="px-5 pt-5">
-              <SectionLabel>Suggested fixes</SectionLabel>
+              <SectionLabel>{t.alert.suggestedFixes}</SectionLabel>
               <View accessibilityRole="radiogroup" className="mt-2 gap-2">
                 {alert.suggestedFixes.map((fix) => (
                   <FixOption
@@ -273,29 +348,35 @@ export function SelfHealingAlertCard({ alert, onApproveFix, onDismiss }: SelfHea
                 ))}
               </View>
               {status === 'error' && (
-                <Text className="mt-3 text-sm text-rose-600">
-                  Couldn't apply the fix. Please try again.
-                </Text>
+                <Animated.Text
+                  entering={FadeIn.duration(200)}
+                  className="mt-3 text-sm text-rose-600 dark:text-rose-300"
+                >
+                  {t.alert.error}
+                </Animated.Text>
               )}
             </View>
 
             <Footer>
               {dismiss && (
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   onPress={dismiss}
                   disabled={isApproving}
-                  className="h-11 items-center justify-center rounded-xl px-4 active:bg-slate-200/60"
+                  className="h-11 items-center justify-center rounded-xl px-4 hover:bg-slate-200/60 active:bg-slate-200/60 dark:hover:bg-white/10 dark:active:bg-white/10"
                 >
-                  <Text className="text-sm font-semibold text-slate-600">Not now</Text>
-                </Pressable>
+                  <Text className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    {t.alert.notNow}
+                  </Text>
+                </PressableScale>
               )}
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityState={{ busy: isApproving, disabled: !selectedFix || isApproving }}
                 onPress={handleApprove}
                 disabled={!selectedFix || isApproving}
-                className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 active:bg-indigo-700 disabled:opacity-70"
+                className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 hover:bg-indigo-700 active:bg-indigo-700 disabled:opacity-70 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                style={{ boxShadow: '0px 8px 20px -8px rgba(79, 70, 229, 0.65)' }}
               >
                 {isApproving ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -303,14 +384,23 @@ export function SelfHealingAlertCard({ alert, onApproveFix, onDismiss }: SelfHea
                   <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                 )}
                 {/* Wraps rather than truncates on narrow screens: the fix name is the point. */}
-                <Text className="shrink text-center text-sm font-semibold text-white" numberOfLines={2}>
-                  {isApproving ? 'Applying fix…' : `Approve: ${selectedFix?.actionLabel ?? 'fix'}`}
-                </Text>
-              </Pressable>
+                <Animated.Text
+                  key={isApproving ? 'approving' : 'idle'}
+                  entering={reduceMotion ? undefined : FadeIn.duration(180)}
+                  className="shrink text-center text-sm font-semibold text-white"
+                  numberOfLines={2}
+                >
+                  {isApproving
+                    ? t.alert.applying
+                    : selectedFix
+                      ? t.alert.approve(pick(selectedFix.actionLabel))
+                      : t.alert.approveFallback}
+                </Animated.Text>
+              </PressableScale>
             </Footer>
-          </>
+          </View>
         )}
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -326,39 +416,54 @@ function FixOption({
   disabled: boolean;
   onSelect: () => void;
 }) {
+  const { t, pick } = useI18n();
+  const { palette } = useAppTheme();
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
       onPress={onSelect}
-      className={`flex-row gap-3 rounded-2xl border p-3.5 ${
-        selected ? 'border-indigo-300 bg-indigo-50/60' : 'border-slate-200 bg-white active:bg-slate-50'
+      className={`flex-row gap-3 rounded-2xl border p-3.5 disabled:opacity-60 ${
+        selected
+          ? 'border-indigo-300 bg-indigo-50/60 dark:border-indigo-400/50 dark:bg-indigo-500/10'
+          : 'border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10'
       }`}
     >
       <View
         className={`mt-0.5 h-5 w-5 items-center justify-center rounded-full border-2 ${
-          selected ? 'border-indigo-600' : 'border-slate-300'
+          selected ? 'border-indigo-600 dark:border-indigo-400' : 'border-slate-300 dark:border-slate-600'
         }`}
       >
-        {selected && <View className="h-2.5 w-2.5 rounded-full bg-indigo-600" />}
+        {selected && (
+          <Animated.View
+            entering={ZoomIn.duration(180)}
+            className="h-2.5 w-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400"
+          />
+        )}
       </View>
       <View className="flex-1">
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text className="text-sm font-semibold text-slate-900">{fix.actionLabel}</Text>
+          <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {pick(fix.actionLabel)}
+          </Text>
           {fix.recommended && (
-            <View className="rounded-full bg-indigo-600 px-2 py-0.5">
+            <View className="rounded-full bg-indigo-600 px-2 py-0.5 dark:bg-indigo-500">
               <Text className="text-[10px] font-bold uppercase tracking-wider text-white">
-                Recommended
+                {t.alert.recommended}
               </Text>
             </View>
           )}
         </View>
-        <Text className="mt-0.5 text-sm leading-5 text-slate-500">{fix.description}</Text>
-        <View className="mt-1.5 flex-row items-center gap-1">
-          <Ionicons name="trending-up" size={14} color="#059669" />
-          <Text className="text-xs font-semibold text-emerald-700">{fix.expectedImpact}</Text>
-          <Text className="text-xs text-slate-400">· Digital Twin forecast</Text>
+        <Text className="mt-0.5 text-sm leading-5 text-slate-500 dark:text-slate-400">
+          {pick(fix.description)}
+        </Text>
+        <View className="mt-1.5 flex-row flex-wrap items-center gap-1">
+          <Ionicons name="trending-up" size={14} color={palette.emerald} />
+          <Text className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            {t.alert.expectedImpact(fix.expectedLift)}
+          </Text>
+          <Text className="text-xs text-slate-400 dark:text-slate-500">· {t.alert.forecastSource}</Text>
         </View>
       </View>
     </Pressable>
@@ -367,7 +472,7 @@ function FixOption({
 
 function Footer({ children }: { children: ReactNode }) {
   return (
-    <View className="mt-5 flex-row items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-4">
+    <View className="mt-5 flex-row items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-4 dark:border-white/10 dark:bg-black/20">
       {children}
     </View>
   );

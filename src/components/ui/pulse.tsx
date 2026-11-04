@@ -16,13 +16,24 @@ type PulseGlowProps = {
   color: string;
   /** Breathes while true; holds a faint static halo otherwise. */
   active: boolean;
+  /** Fades the whole glow in or out, so two glows can cross-fade when the state changes. */
+  visible?: boolean;
+  /** Matches the card above it, so no stray colour shows at the rounded corners. */
+  fillColor?: string;
   borderRadius?: number;
 };
 
 /** Soft coloured halo placed behind a card, filling the same box. */
-export function PulseGlow({ color, active, borderRadius = 24 }: PulseGlowProps) {
+export function PulseGlow({
+  color,
+  active,
+  visible = true,
+  fillColor = '#FFFFFF',
+  borderRadius = 24,
+}: PulseGlowProps) {
   const reduceMotion = useReducedMotion();
   const breath = useSharedValue(0);
+  const presence = useSharedValue(visible ? 1 : 0);
 
   useEffect(() => {
     if (active && !reduceMotion) {
@@ -38,15 +49,21 @@ export function PulseGlow({ color, active, borderRadius = 24 }: PulseGlowProps) 
     return () => cancelAnimation(breath);
   }, [active, reduceMotion, breath]);
 
+  useEffect(() => {
+    presence.value = withTiming(visible ? 1 : 0, { duration: reduceMotion ? 0 : 600 });
+  }, [visible, reduceMotion, presence]);
+
   const breathStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(breath.value, [0, 1], [0.45, 1]),
+    opacity: presence.value * interpolate(breath.value, [0, 1], [0.45, 1]),
+    // A hair of growth makes the halo swell rather than just blink.
+    transform: [{ scale: interpolate(breath.value, [0, 1], [1, 1.012]) }],
   }));
 
   return (
     <Animated.View
       style={[
         styles.fill,
-        { borderRadius, boxShadow: `0px 0px 28px 2px ${color}` },
+        { borderRadius, backgroundColor: fillColor, boxShadow: `0px 0px 28px 2px ${color}` },
         breathStyle,
       ]}
     />
@@ -101,8 +118,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    // Opaque so native platforms always cast the shadow; the card on top hides it.
-    backgroundColor: '#FFFFFF',
     pointerEvents: 'none',
   },
   ring: {
