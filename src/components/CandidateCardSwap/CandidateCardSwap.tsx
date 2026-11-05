@@ -20,6 +20,8 @@ type CandidateCardSwapProps = {
   visibleCount?: number;
   /** How much of each back card shows above the one in front. */
   peek?: number;
+  /** Candidates already shortlisted elsewhere (e.g. moved on the board); read once on mount. */
+  initialShortlistedIds?: string[];
   onActiveCandidateChange?: (candidate: Candidate, index: number) => void;
   onShortlist?: (candidate: Candidate) => void;
   onSkip?: (candidate: Candidate) => void;
@@ -32,6 +34,7 @@ export function CandidateCardSwap({
   cardHeight = 500,
   visibleCount = 4,
   peek = 16,
+  initialShortlistedIds,
   onActiveCandidateChange,
   onShortlist,
   onSkip,
@@ -41,7 +44,7 @@ export function CandidateCardSwap({
   const [containerWidth, setContainerWidth] = useState(0);
   const [frontIndex, setFrontIndex] = useState(0);
   const [lastSwap, setLastSwap] = useState<SwapEvent>({ direction: 'next' });
-  const [shortlistedIds, setShortlistedIds] = useState<string[]>([]);
+  const [shortlistedIds, setShortlistedIds] = useState<string[]>(initialShortlistedIds ?? []);
 
   const total = candidates.length;
   const activeIndex = total > 0 ? frontIndex % total : 0;

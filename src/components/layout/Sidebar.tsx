@@ -55,7 +55,8 @@ export function getNavLabel(key: NavKey, t: Dictionary): string {
 export type NavBadge = { count: number; tone?: 'neutral' | 'alert' };
 
 type SidebarProps = {
-  activeKey: NavKey;
+  /** `null` on pages that are not in the navigation, such as "not found". */
+  activeKey: NavKey | null;
   onNavigate: (key: NavKey) => void;
   badges?: Partial<Record<NavKey, NavBadge>>;
   agentsOnline: number;
@@ -161,7 +162,8 @@ function NavRow({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: active }}
+      aria-selected={active}
+      aria-current={active ? 'page' : undefined}
       onPress={onPress}
       className={`flex-row items-center gap-3 rounded-xl px-3 py-2.5 ${
         active

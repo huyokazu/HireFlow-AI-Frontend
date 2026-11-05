@@ -35,11 +35,11 @@ export function PressableScale({
     <AnimatedPressable
       {...rest}
       onPressIn={(event) => {
-        if (!reduceMotion) scale.value = withSpring(pressedScale, PRESS_SPRING);
+        if (!reduceMotion) scale.set(withSpring(pressedScale, PRESS_SPRING));
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
-        scale.value = withSpring(1, PRESS_SPRING);
+        scale.set(withSpring(1, PRESS_SPRING));
         onPressOut?.(event);
       }}
       style={[style, pressStyle]}

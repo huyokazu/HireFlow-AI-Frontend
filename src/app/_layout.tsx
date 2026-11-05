@@ -1,6 +1,7 @@
-import './global.css';
-import './src/theme/interop';
+import '../../global.css';
+import '../theme/interop';
 
+import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { colorScheme } from 'nativewind';
 import { useEffect } from 'react';
@@ -8,11 +9,17 @@ import { Appearance, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { LanguageProvider } from './src/i18n';
-import { DashboardScreen } from './src/screens/DashboardScreen';
-import { useAppTheme } from './src/theme';
+import { AppShell } from '../components/layout/AppShell';
+import { LanguageProvider } from '../i18n';
+import { WorkspaceProvider } from '../state/WorkspaceProvider';
+import { useAppTheme } from '../theme';
 
-export default function App() {
+/**
+ * Root layout: app-wide providers, then the shell (sidebar, backdrop) around the current route.
+ * `Slot` keeps a stack history, so the Android back button and browser back both step back
+ * through visited screens.
+ */
+export default function RootLayout() {
   useEffect(() => {
     // Dark mode follows a class on web, so start from the OS preference explicitly.
     if (Platform.OS === 'web') {
@@ -24,8 +31,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <LanguageProvider>
-          <DashboardScreen />
-          <ThemedStatusBar />
+          <WorkspaceProvider>
+            <AppShell>
+              <Slot />
+            </AppShell>
+            <ThemedStatusBar />
+          </WorkspaceProvider>
         </LanguageProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -47,9 +47,9 @@ export function AnimatedNumber({
     // The delay lines the first roll up with an entrance; later changes respond at once.
     const wait = isFirstRun.current ? delay : 0;
     isFirstRun.current = false;
-    animated.value = reduceMotion
-      ? value
-      : withDelay(wait, withTiming(value, { duration, easing: Easing.out(Easing.cubic) }));
+    animated.set(
+      reduceMotion ? value : withDelay(wait, withTiming(value, { duration, easing: Easing.out(Easing.cubic) })),
+    );
     // `animated` is a stable shared value; only a new target should restart the roll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, reduceMotion]);

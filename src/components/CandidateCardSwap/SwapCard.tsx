@@ -163,9 +163,10 @@ export function SwapCard({
     enabled: isFront && swipeEnabled,
     activeOffsetX: [-12, 12],
     failOffsetY: [-24, 24],
+    // `.set()` instead of `.value =`: the React Compiler lint treats hook results as immutable.
     onUpdate: (event) => {
-      dragX.value = event.translationX;
-      dragY.value = event.translationY * 0.35;
+      dragX.set(event.translationX);
+      dragY.set(event.translationY * 0.35);
     },
     onDeactivate: (event) => {
       const flung = Math.abs(event.velocityX) > SWIPE_VELOCITY;
@@ -174,13 +175,13 @@ export function SwapCard({
         const direction = Math.sign(flung ? event.velocityX : event.translationX) || 1;
         scheduleOnRN(onSwipe, {
           x: direction * width * 1.5,
-          y: dragY.value + height * 0.1,
+          y: dragY.get() + height * 0.1,
           velocityX: event.velocityX,
         });
         return;
       }
-      dragX.value = withSpring(0, SETTLE_SPRING);
-      dragY.value = withSpring(0, SETTLE_SPRING);
+      dragX.set(withSpring(0, SETTLE_SPRING));
+      dragY.set(withSpring(0, SETTLE_SPRING));
     },
   });
 

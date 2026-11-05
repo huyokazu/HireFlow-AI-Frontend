@@ -1,42 +1,42 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Text, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useI18n } from '../../i18n';
+import { useWorkspace } from '../../state/WorkspaceProvider';
 import { useAppTheme } from '../../theme';
-import { BrandMark } from '../layout/BrandMark';
-import { LanguageToggle } from '../layout/LanguageToggle';
-import { ThemeToggle } from '../layout/ThemeToggle';
 import { PressableScale } from '../ui/PressableScale';
+import { useShell } from './AppShell';
+import { BrandMark } from './BrandMark';
+import { LanguageToggle } from './LanguageToggle';
+import { ThemeToggle } from './ThemeToggle';
 
-type DashboardHeaderProps = {
+type AppHeaderProps = {
   title: string;
   subtitle: string;
-  notificationCount: number;
-  /** Provided on narrow screens, where the sidebar lives in a drawer behind a menu button. */
-  onOpenMenu?: () => void;
-  onCreateCampaign: () => void;
+  /** The "New campaign" button; hidden on the campaign wizard itself. */
+  showNewCampaign?: boolean;
 };
 
-export function DashboardHeader({
-  title,
-  subtitle,
-  notificationCount,
-  onOpenMenu,
-  onCreateCampaign,
-}: DashboardHeaderProps) {
+/** Page title plus the app-wide controls: search, language, theme, notifications, new campaign. */
+export function AppHeader({ title, subtitle, showNewCampaign = true }: AppHeaderProps) {
   const { t } = useI18n();
   const { palette } = useAppTheme();
+  const { openMenu } = useShell();
+  const { alerts } = useWorkspace();
+  const router = useRouter();
+  const notificationCount = alerts.length;
 
   return (
     <Animated.View entering={FadeInDown.duration(450)} className="gap-5">
-      {onOpenMenu && (
+      {openMenu && (
         <View className="flex-row items-center justify-between gap-2">
           <View className="flex-row items-center gap-2.5">
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t.header.openMenu}
-              onPress={onOpenMenu}
+              onPress={openMenu}
               className="h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white/80 active:bg-slate-100 dark:border-white/15 dark:bg-white/5 dark:active:bg-white/10"
             >
               <Ionicons name="menu" size={20} color={palette.icon.strong} />
@@ -67,22 +67,24 @@ export function DashboardHeader({
               className="flex-1 text-sm text-slate-900 dark:text-slate-100"
             />
           </View>
-          {!onOpenMenu && (
+          {!openMenu && (
             <>
               <LanguageToggle />
               <ThemeToggle />
               <NotificationButton count={notificationCount} />
             </>
           )}
-          <PressableScale
-            accessibilityRole="button"
-            onPress={onCreateCampaign}
-            className="h-11 flex-row items-center gap-1.5 rounded-xl bg-indigo-600 px-4 hover:bg-indigo-700 active:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-            style={{ boxShadow: '0px 8px 20px -8px rgba(79, 70, 229, 0.65)' }}
-          >
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text className="text-sm font-semibold text-white">{t.header.newCampaign}</Text>
-          </PressableScale>
+          {showNewCampaign && (
+            <PressableScale
+              accessibilityRole="button"
+              onPress={() => router.navigate('/campaigns/new')}
+              className="h-11 flex-row items-center gap-1.5 rounded-xl bg-indigo-600 px-4 hover:bg-indigo-700 active:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+              style={{ boxShadow: '0px 8px 20px -8px rgba(79, 70, 229, 0.65)' }}
+            >
+              <Ionicons name="add" size={18} color="#FFFFFF" />
+              <Text className="text-sm font-semibold text-white">{t.header.newCampaign}</Text>
+            </PressableScale>
+          )}
         </View>
       </View>
     </Animated.View>

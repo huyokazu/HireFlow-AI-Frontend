@@ -82,6 +82,26 @@ const MOCK_SUMMARY: DashboardSummary = {
       targetMatchRate: 65,
       health: 'on_track',
     },
+    {
+      id: 'backend-engineer-go',
+      title: { en: 'Backend Engineer (Go)', vi: 'Kỹ sư Backend (Go)' },
+      department: { en: 'Engineering', vi: 'Kỹ thuật' },
+      stage: 'screening',
+      candidates: 52,
+      matchRate: 74,
+      targetMatchRate: 60,
+      health: 'on_track',
+    },
+    {
+      id: 'hr-business-partner',
+      title: { en: 'HR Business Partner', vi: 'Chuyên viên HRBP' },
+      department: { en: 'Operations', vi: 'Vận hành' },
+      stage: 'interviewing',
+      candidates: 46,
+      matchRate: 82,
+      targetMatchRate: 65,
+      health: 'on_track',
+    },
   ],
 };
 
