@@ -56,7 +56,7 @@ export function LanguageToggle() {
             key={code}
             accessibilityRole="radio"
             accessibilityLabel={t.header.languageNames[code]}
-            accessibilityState={{ checked: selected }}
+            aria-checked={selected}
             onPress={() => setLanguage(code)}
             className="h-full items-center justify-center rounded-full"
             style={{ width: SEGMENT_WIDTH }}

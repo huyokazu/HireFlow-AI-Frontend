@@ -53,7 +53,7 @@ export function ThemeToggle() {
     <PressableScale
       accessibilityRole="switch"
       accessibilityLabel={isDark ? t.header.switchToLight : t.header.switchToDark}
-      accessibilityState={{ checked: isDark }}
+      aria-checked={isDark}
       onPress={toggleTheme}
       className="h-11 justify-center rounded-full border border-slate-200 bg-white/80 dark:border-white/15 dark:bg-white/5"
       style={{ width: TRACK_WIDTH, paddingHorizontal: INSET }}

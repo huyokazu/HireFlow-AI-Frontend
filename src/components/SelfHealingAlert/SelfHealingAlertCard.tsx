@@ -372,7 +372,7 @@ export function SelfHealingAlertCard({
               )}
               <PressableScale
                 accessibilityRole="button"
-                accessibilityState={{ busy: isApproving, disabled: !selectedFix || isApproving }}
+                aria-busy={isApproving}
                 onPress={handleApprove}
                 disabled={!selectedFix || isApproving}
                 className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 hover:bg-indigo-700 active:bg-indigo-700 disabled:opacity-70 dark:bg-indigo-500 dark:hover:bg-indigo-400"
@@ -421,7 +421,7 @@ function FixOption({
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ checked: selected, disabled }}
+      aria-checked={selected}
       disabled={disabled}
       onPress={onSelect}
       className={`flex-row gap-3 rounded-2xl border p-3.5 disabled:opacity-60 ${

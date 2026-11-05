@@ -1,168 +1,66 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CandidateCardSwap } from '../components/CandidateCardSwap';
 import { ActiveCampaignsPanel } from '../components/dashboard/ActiveCampaignsPanel';
-import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { SummaryStats, type SummaryStat } from '../components/dashboard/SummaryStats';
-import { MobileDrawer } from '../components/layout/MobileDrawer';
-import { getNavLabel, Sidebar, type NavKey } from '../components/layout/Sidebar';
-import { ThemedBackdrop } from '../components/layout/ThemedBackdrop';
+import { AppHeader } from '../components/layout/AppHeader';
+import { ScreenContainer } from '../components/layout/ScreenContainer';
 import { SelfHealingAlertCard } from '../components/SelfHealingAlert';
 import { Panel, PanelLink } from '../components/ui/Panel';
-import { useI18n, type Dictionary, type Localized } from '../i18n';
-import { fetchMatchedCandidates, type Candidate } from '../services/candidates';
-import { fetchDashboardSummary, type DashboardSummary } from '../services/dashboard';
-import {
-  approveSuggestedFix,
-  fetchActiveBottleneckAlerts,
-  type BottleneckAlert,
-  type SuggestedFix,
-} from '../services/selfHealing';
+import { useI18n, type Dictionary } from '../i18n';
+import type { DashboardSummary } from '../services/dashboard';
+import type { PipelineStage } from '../services/pipeline';
+import { FEATURED_CAMPAIGN_ID, useWorkspace } from '../state/WorkspaceProvider';
 import { useAppTheme } from '../theme';
 
-/** At this width and above the sidebar is always visible; below it lives in a drawer. */
-const WIDE_LAYOUT_MIN_WIDTH = 1024;
-const SIDEBAR_WIDTH = 264;
-const FEATURED_CAMPAIGN_ID = 'senior-frontend-engineer';
-// Placeholder until Supabase Auth provides the signed-in user.
-const CURRENT_USER: { name: string; title: Localized } = {
-  name: 'Jordan Lee',
-  title: { en: 'Head of Talent', vi: 'Trưởng bộ phận Tuyển dụng' },
-};
 // Entrance order: header, stats (staggered), then the three panels.
 const STATS_DELAY = 80;
 const PANEL_DELAYS = { candidates: 360, alert: 440, campaigns: 520 };
+/** The dashboard previews a few campaigns; the Campaigns page lists them all. */
+const MAX_DASHBOARD_CAMPAIGNS = 4;
+/** Candidates at these stages have already been shortlisted. */
+const SHORTLISTED_STAGES: readonly PipelineStage[] = ['interview', 'offer', 'hired'];
 
 export function DashboardScreen() {
-  const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const { t, pick } = useI18n();
-  const isWide = width >= WIDE_LAYOUT_MIN_WIDTH;
-
-  const [activeNav, setActiveNav] = useState<NavKey>('dashboard');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [candidates, setCandidates] = useState<Candidate[] | null>(null);
-  const [alerts, setAlerts] = useState<BottleneckAlert[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchDashboardSummary().then((result) => {
-      if (!cancelled) setSummary(result);
-    });
-    fetchMatchedCandidates(FEATURED_CAMPAIGN_ID).then((result) => {
-      if (!cancelled) setCandidates(result);
-    });
-    fetchActiveBottleneckAlerts(FEATURED_CAMPAIGN_ID).then((result) => {
-      if (!cancelled) setAlerts(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const navigate = useCallback((key: NavKey) => {
-    setActiveNav(key);
-    setDrawerOpen(false);
-  }, []);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const dismissAlert = useCallback((alert: BottleneckAlert) => {
-    setAlerts((current) => current.filter((item) => item.id !== alert.id));
-  }, []);
-
-  const sidebar = (
-    <Sidebar
-      activeKey={activeNav}
-      onNavigate={navigate}
-      agentsOnline={summary?.agentsOnline ?? 0}
-      user={{ name: CURRENT_USER.name, title: pick(CURRENT_USER.title) }}
-      badges={{
-        candidates: { count: summary?.candidatesInPipeline ?? 0 },
-        'self-healing': { count: alerts.length, tone: 'alert' },
-      }}
-    />
-  );
-
-  const isDashboard = activeNav === 'dashboard';
+  const { t } = useI18n();
+  const { summary } = useWorkspace();
   const today = t.date.long(new Date());
 
   return (
-    <View className="flex-1 flex-row bg-slate-50 dark:bg-obsidian">
-      <ThemedBackdrop />
-
-      {isWide && <View style={{ width: SIDEBAR_WIDTH }}>{sidebar}</View>}
-
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={{
-          paddingTop: insets.top + 24,
-          paddingBottom: insets.bottom + 48,
-          paddingHorizontal: isWide ? 32 : 16,
-        }}
-      >
-        <View className="w-full max-w-[1280px] self-center">
-          <DashboardHeader
-            title={isDashboard ? t.dashboard.title : getNavLabel(activeNav, t)}
-            subtitle={summary ? t.dashboard.subtitle(today, summary.activeCampaigns) : today}
-            notificationCount={alerts.length}
-            onOpenMenu={isWide ? undefined : () => setDrawerOpen(true)}
-            onCreateCampaign={() => navigate('campaigns')}
-          />
-
-          {isDashboard ? (
-            <DashboardOverview
-              summary={summary}
-              candidates={candidates}
-              alert={alerts[0] ?? null}
-              onApproveFix={(alert, fix) => approveSuggestedFix(alert.id, fix.id)}
-              onDismissAlert={dismissAlert}
-              onNavigate={navigate}
-            />
-          ) : (
-            <SectionPlaceholder label={getNavLabel(activeNav, t)} />
-          )}
-        </View>
-      </ScrollView>
-
-      {!isWide && (
-        <MobileDrawer open={drawerOpen} onClose={closeDrawer}>
-          {sidebar}
-        </MobileDrawer>
-      )}
-    </View>
+    <ScreenContainer>
+      <AppHeader
+        title={t.dashboard.title}
+        subtitle={summary ? t.dashboard.subtitle(today, summary.activeCampaigns) : today}
+      />
+      <DashboardOverview />
+    </ScreenContainer>
   );
 }
 
-type DashboardOverviewProps = {
-  summary: DashboardSummary | null;
-  candidates: Candidate[] | null;
-  alert: BottleneckAlert | null;
-  onApproveFix: (alert: BottleneckAlert, fix: SuggestedFix) => Promise<void>;
-  onDismissAlert: (alert: BottleneckAlert) => void;
-  onNavigate: (key: NavKey) => void;
-};
-
-function DashboardOverview({
-  summary,
-  candidates,
-  alert,
-  onApproveFix,
-  onDismissAlert,
-  onNavigate,
-}: DashboardOverviewProps) {
+function DashboardOverview() {
   const { t, pick } = useI18n();
   const { palette } = useAppTheme();
+  const router = useRouter();
+  const { summary, matchedCandidates, pipeline, alerts, approveFix, dismissAlert, shortlistCandidate } =
+    useWorkspace();
+
+  // Shortlisting moves a candidate on the board, so the deck marks its cards already past screening.
+  const shortlistedIds = useMemo(() => {
+    const advanced = new Set(
+      pipeline?.filter((candidate) => SHORTLISTED_STAGES.includes(candidate.stage)).map((candidate) => candidate.id),
+    );
+    return matchedCandidates?.filter((candidate) => advanced.has(candidate.id)).map((candidate) => candidate.id) ?? [];
+  }, [matchedCandidates, pipeline]);
 
   if (!summary) {
     return <ActivityIndicator className="mt-24" color={palette.indigo} />;
   }
 
   const featuredCampaign = summary.campaigns.find((campaign) => campaign.id === FEATURED_CAMPAIGN_ID);
+  const alert = alerts[0] ?? null;
 
   return (
     <>
@@ -183,11 +81,22 @@ function DashboardOverview({
             subtitle={t.dashboard.matchedSubtitle(
               featuredCampaign ? pick(featuredCampaign.title) : t.dashboard.featuredCampaign,
             )}
-            action={<PanelLink label={t.dashboard.openBoard} onPress={() => onNavigate('candidates')} />}
+            action={
+              <PanelLink
+                label={t.dashboard.openBoard}
+                onPress={() =>
+                  router.navigate({ pathname: '/candidates', params: { campaign: FEATURED_CAMPAIGN_ID } })
+                }
+              />
+            }
           >
             <View className="pb-1 pt-4">
-              {candidates ? (
-                <CandidateCardSwap candidates={candidates} />
+              {matchedCandidates && pipeline ? (
+                <CandidateCardSwap
+                  candidates={matchedCandidates}
+                  initialShortlistedIds={shortlistedIds}
+                  onShortlist={(candidate) => shortlistCandidate(candidate.id)}
+                />
               ) : (
                 <ActivityIndicator className="my-24" color={palette.indigo} />
               )}
@@ -201,8 +110,8 @@ function DashboardOverview({
               <SelfHealingAlertCard
                 key={alert.id}
                 alert={alert}
-                onApproveFix={onApproveFix}
-                onDismiss={onDismissAlert}
+                onApproveFix={approveFix}
+                onDismiss={dismissAlert}
                 enterDelay={PANEL_DELAYS.alert}
               />
             </Animated.View>
@@ -212,31 +121,14 @@ function DashboardOverview({
             layout={LinearTransition.duration(300)}
           >
             <ActiveCampaignsPanel
-              campaigns={summary.campaigns}
-              onViewAll={() => onNavigate('campaigns')}
+              campaigns={summary.campaigns.slice(0, MAX_DASHBOARD_CAMPAIGNS)}
+              onViewAll={() => router.navigate('/campaigns')}
               enterDelay={PANEL_DELAYS.campaigns}
             />
           </Animated.View>
         </View>
       </View>
     </>
-  );
-}
-
-function SectionPlaceholder({ label }: { label: string }) {
-  const { t } = useI18n();
-  const { palette } = useAppTheme();
-  return (
-    <Animated.View entering={FadeInDown.duration(400)} className="mt-6">
-      <Panel title={label} subtitle={t.dashboard.placeholderSubtitle}>
-        <View className="items-center rounded-2xl border border-dashed border-slate-300 px-6 py-16 dark:border-white/15">
-          <Ionicons name="construct-outline" size={28} color={palette.icon.faint} />
-          <Text className="mt-3 text-center text-sm text-slate-500 dark:text-slate-400">
-            {t.dashboard.placeholderBody}
-          </Text>
-        </View>
-      </Panel>
-    </Animated.View>
   );
 }
 
@@ -292,7 +184,3 @@ function buildSummaryStats(summary: DashboardSummary, t: Dictionary): SummarySta
     },
   ];
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-});
