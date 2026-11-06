@@ -27,7 +27,6 @@ export type DashboardSummary = {
   averageTimeToHireDays: number;
   /** Negative means faster than last month. */
   timeToHireChangeDays: number;
-  agentsOnline: number;
   campaigns: CampaignSummary[];
 };
 
@@ -40,7 +39,6 @@ const MOCK_SUMMARY: DashboardSummary = {
   targetMatchRate: 60,
   averageTimeToHireDays: 23,
   timeToHireChangeDays: -3,
-  agentsOnline: 4,
   campaigns: [
     {
       id: 'senior-frontend-engineer',

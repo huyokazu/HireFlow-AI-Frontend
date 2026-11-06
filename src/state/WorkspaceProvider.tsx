@@ -1,6 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import {
+  AGENT_KEYS,
+  applyAgentEvent,
+  createAgentEvent,
+  fetchAgentWorkspace,
+  NO_AGENTS_PAUSED,
+  subscribeToAgentActivity,
+  updatePausedAgents,
+  type ActivityContext,
+  type AgentEvent,
+  type AgentEventInput,
+  type AgentKey,
+  type AgentStatsByKey,
+  type PausedAgents,
+} from '../services/agents';
+import {
+  CAMPAIGN_AGENTS,
   fetchCampaignSetups,
   launchCampaign as launchCampaignRequest,
   updateCampaignSetup,
@@ -35,6 +51,12 @@ export type PipelineMove = {
 /** The fix HR approved for an alert, and when. */
 export type AlertApproval = { fixId: string; at: string };
 
+/** What today's agent numbers are compared with. */
+export type AgentBaseline = { tasksYesterday: number; hoursSavedBeforeToday: number };
+
+/** Activity entries kept in memory, newest first. */
+const MAX_AGENT_EVENTS = 60;
+
 type Workspace = {
   summary: DashboardSummary | null;
   matchedCandidates: Candidate[] | null;
@@ -64,6 +86,19 @@ type Workspace = {
   twinOffsets: Record<string, number>;
   /** Saves a new setup for a campaign, e.g. a Digital Twin scenario. */
   applyCampaignSetup: (campaignId: string, setup: CampaignDraft) => Promise<void>;
+  /** Today's numbers for each AI agent; `null` until loaded. */
+  agentStats: AgentStatsByKey | null;
+  agentBaseline: AgentBaseline | null;
+  /** What the agents and the Orchestrator did, newest first. */
+  agentEvents: AgentEvent[];
+  /** Agents HR paused, on every campaign. */
+  pausedAgents: PausedAgents;
+  /** Agents not paused, for the sidebar. */
+  agentsOnline: number;
+  /** Pauses and resumes agents; the change goes to the activity log. */
+  setPausedAgents: (next: PausedAgents) => void;
+  /** Streams agent activity into the workspace until the returned function is called. */
+  watchAgentActivity: () => () => void;
 };
 
 const WorkspaceContext = createContext<Workspace | null>(null);
@@ -83,8 +118,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<HealingRecord[]>([]);
   const [campaignSetups, setCampaignSetups] = useState<Record<string, CampaignDraft>>({});
   const [twinOffsets, setTwinOffsets] = useState<Record<string, number>>({});
+  const [agentStats, setAgentStats] = useState<AgentStatsByKey | null>(null);
+  const [agentBaseline, setAgentBaseline] = useState<AgentBaseline | null>(null);
+  const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
+  const [pausedAgents, setPausedAgentsState] = useState<PausedAgents>(NO_AGENTS_PAUSED);
   // Mirrors `pipeline` so a move can report what it changed without waiting for a re-render.
   const pipelineRef = useRef<PipelineCandidate[] | null>(null);
+  // Mirrors `pausedAgents`, so a change can be compared with the state it replaces.
+  const pausedRef = useRef<PausedAgents>(NO_AGENTS_PAUSED);
+  // What the activity stream reads to decide what happens next.
+  const activityContextRef = useRef<ActivityContext | null>(null);
 
   const setPipeline = useCallback((next: PipelineCandidate[]) => {
     pipelineRef.current = next;
@@ -100,7 +143,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       fetchActiveBottleneckAlerts(),
       fetchHealingHistory(),
       fetchCampaignSetups(),
-    ]).then(([summaryResult, matched, board, openAlerts, pastRecords, setups]) => {
+      fetchAgentWorkspace(),
+    ]).then(([summaryResult, matched, board, openAlerts, pastRecords, setups, agents]) => {
       if (cancelled) return;
       setSummary(summaryResult);
       setMatchedCandidates(matched);
@@ -108,6 +152,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setAllAlerts(openAlerts);
       setHistory(pastRecords);
       setCampaignSetups(setups);
+      setAgentStats(agents.stats);
+      setAgentEvents(agents.events);
+      setAgentBaseline({ tasksYesterday: agents.tasksYesterday, hoursSavedBeforeToday: agents.hoursSavedBeforeToday });
       // Calibrated once, against today's live match rates.
       const offsets: Record<string, number> = {};
       for (const campaign of summaryResult.campaigns) {
@@ -152,6 +199,67 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return [...thisSession, ...history].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
   }, [allAlerts, approvals, dismissals, history]);
 
+  const recordAgentEvent = useCallback((event: AgentEvent) => {
+    setAgentEvents((current) => [event, ...current].slice(0, MAX_AGENT_EVENTS));
+    setAgentStats((current) => current && applyAgentEvent(current, event));
+  }, []);
+
+  // What the Orchestrator logs on the server when HR acts; the mock adds it here.
+  const logAgentEvent = useCallback(
+    (input: AgentEventInput) => recordAgentEvent(createAgentEvent(input)),
+    [recordAgentEvent],
+  );
+
+  useEffect(() => {
+    activityContextRef.current =
+      summary && agentStats
+        ? {
+            stats: agentStats,
+            paused: pausedAgents,
+            campaigns: summary.campaigns,
+            setups: campaignSetups,
+            candidates: pipeline ?? [],
+            events: agentEvents,
+          }
+        : null;
+  }, [summary, agentStats, pausedAgents, campaignSetups, pipeline, agentEvents]);
+
+  const watchAgentActivity = useCallback(
+    () => subscribeToAgentActivity(() => activityContextRef.current, recordAgentEvent),
+    [recordAgentEvent],
+  );
+
+  const setPausedAgents = useCallback(
+    (next: PausedAgents) => {
+      const previous = pausedRef.current;
+      const changed = AGENT_KEYS.filter((agent) => previous[agent] !== next[agent]);
+      if (changed.length === 0) return;
+      pausedRef.current = next;
+      setPausedAgentsState(next);
+      // One log entry per action: "every agent" when that's where it ends up, else a name or a count.
+      const everyAgentIs = (paused: boolean) => AGENT_KEYS.every((agent) => next[agent] === paused);
+      const logGroup = (agents: AgentKey[], paused: boolean) => {
+        if (agents.length === 1) {
+          logAgentEvent({ kind: paused ? 'agentPaused' : 'agentResumed', actor: agents[0] });
+        } else if (agents.length > 1) {
+          logAgentEvent({ kind: paused ? 'agentsPaused' : 'agentsResumed', actor: 'orchestrator', count: agents.length });
+        }
+      };
+      if (changed.length > 1 && everyAgentIs(true)) {
+        logAgentEvent({ kind: 'allPaused', actor: 'orchestrator' });
+      } else if (changed.length > 1 && everyAgentIs(false)) {
+        logAgentEvent({ kind: 'allResumed', actor: 'orchestrator' });
+      } else {
+        logGroup(changed.filter((agent) => next[agent]), true);
+        logGroup(changed.filter((agent) => !next[agent]), false);
+      }
+      void updatePausedAgents(Object.fromEntries(changed.map((agent) => [agent, next[agent]])));
+    },
+    [logAgentEvent],
+  );
+
+  const agentsOnline = useMemo(() => AGENT_KEYS.filter((agent) => !pausedAgents[agent]).length, [pausedAgents]);
+
   const dismissAlert = useCallback((alert: BottleneckAlert) => {
     setDismissals((current) => ({ ...current, [alert.id]: new Date().toISOString() }));
   }, []);
@@ -164,18 +272,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const approveFix = useCallback(async (alert: BottleneckAlert, fix: SuggestedFix) => {
-    await approveSuggestedFix(alert.id, fix.id);
-    setApprovals((current) => ({ ...current, [alert.id]: { fixId: fix.id, at: new Date().toISOString() } }));
-    // The Orchestrator applied the change, so the campaign's setup (and the Digital Twin's baseline) follows.
-    const { patch } = fix;
-    if (patch) {
-      setCampaignSetups((current) => {
-        const setup = current[alert.campaignId];
-        return setup ? { ...current, [alert.campaignId]: { ...setup, ...patch } } : current;
-      });
-    }
-  }, []);
+  const approveFix = useCallback(
+    async (alert: BottleneckAlert, fix: SuggestedFix) => {
+      await approveSuggestedFix(alert.id, fix.id);
+      setApprovals((current) => ({ ...current, [alert.id]: { fixId: fix.id, at: new Date().toISOString() } }));
+      // The Orchestrator applied the change, so the campaign's setup (and the Digital Twin's baseline) follows.
+      const { patch } = fix;
+      if (patch) {
+        setCampaignSetups((current) => {
+          const setup = current[alert.campaignId];
+          return setup ? { ...current, [alert.campaignId]: { ...setup, ...patch } } : current;
+        });
+      }
+      logAgentEvent({ kind: 'fixApplied', actor: 'orchestrator', campaignId: alert.campaignId, fix: fix.actionLabel });
+    },
+    [logAgentEvent],
+  );
 
   const moveCandidate = useCallback(
     (candidateId: string, to: PipelineStage): PipelineMove | null => {
@@ -221,26 +333,39 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [moveCandidate],
   );
 
-  const launchCampaign = useCallback(async (draft: CampaignDraft) => {
-    const campaign = await launchCampaignRequest(draft);
-    setSummary(
-      (current) =>
-        current && {
-          ...current,
-          activeCampaigns: current.activeCampaigns + 1,
-          campaigns: [campaign, ...current.campaigns],
-        },
-    );
-    // A new campaign has no live results yet, so the Digital Twin uses the model as it is.
-    setCampaignSetups((current) => ({ ...current, [campaign.id]: draft }));
-    setTwinOffsets((current) => ({ ...current, [campaign.id]: 0 }));
-    return campaign;
-  }, []);
+  const launchCampaign = useCallback(
+    async (draft: CampaignDraft) => {
+      const campaign = await launchCampaignRequest(draft);
+      setSummary(
+        (current) =>
+          current && {
+            ...current,
+            activeCampaigns: current.activeCampaigns + 1,
+            campaigns: [campaign, ...current.campaigns],
+          },
+      );
+      // A new campaign has no live results yet, so the Digital Twin uses the model as it is.
+      setCampaignSetups((current) => ({ ...current, [campaign.id]: draft }));
+      setTwinOffsets((current) => ({ ...current, [campaign.id]: 0 }));
+      logAgentEvent({
+        kind: 'campaignLaunched',
+        actor: 'orchestrator',
+        campaignId: campaign.id,
+        agents: CAMPAIGN_AGENTS.filter((agent) => draft.agents[agent]).length,
+      });
+      return campaign;
+    },
+    [logAgentEvent],
+  );
 
-  const applyCampaignSetup = useCallback(async (campaignId: string, setup: CampaignDraft) => {
-    await updateCampaignSetup(campaignId, setup);
-    setCampaignSetups((current) => ({ ...current, [campaignId]: setup }));
-  }, []);
+  const applyCampaignSetup = useCallback(
+    async (campaignId: string, setup: CampaignDraft) => {
+      await updateCampaignSetup(campaignId, setup);
+      setCampaignSetups((current) => ({ ...current, [campaignId]: setup }));
+      logAgentEvent({ kind: 'setupUpdated', actor: 'orchestrator', campaignId });
+    },
+    [logAgentEvent],
+  );
 
   const value = useMemo<Workspace>(
     () => ({
@@ -261,6 +386,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       campaignSetups,
       twinOffsets,
       applyCampaignSetup,
+      agentStats,
+      agentBaseline,
+      agentEvents,
+      pausedAgents,
+      agentsOnline,
+      setPausedAgents,
+      watchAgentActivity,
     }),
     [
       summary,
@@ -280,6 +412,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       campaignSetups,
       twinOffsets,
       applyCampaignSetup,
+      agentStats,
+      agentBaseline,
+      agentEvents,
+      pausedAgents,
+      agentsOnline,
+      setPausedAgents,
+      watchAgentActivity,
     ],
   );
 

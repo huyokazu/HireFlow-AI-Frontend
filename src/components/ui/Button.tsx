@@ -18,6 +18,8 @@ type ButtonProps = {
   loading?: boolean;
   disabled?: boolean;
   className?: string;
+  /** Read out instead of the label, when the label alone is too short to be clear. */
+  accessibilityLabel?: string;
 };
 
 // Class names are spelled out in full so Tailwind can find them when it scans the source.
@@ -48,6 +50,7 @@ export function Button({
   loading = false,
   disabled = false,
   className = '',
+  accessibilityLabel,
 }: ButtonProps) {
   const { palette } = useAppTheme();
   const classes = VARIANT_CLASSES[variant];
@@ -62,6 +65,7 @@ export function Button({
   return (
     <PressableScale
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       aria-busy={loading}
       disabled={disabled || loading}
       onPress={onPress}

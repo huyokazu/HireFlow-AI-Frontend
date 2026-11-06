@@ -1,21 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, type ComponentProps } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  interpolateColor,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import type { ComponentProps } from 'react';
+import { Text, View } from 'react-native';
 
 import { useAppTheme } from '../../theme';
 import { PressableScale } from '../ui/PressableScale';
-
-const TRACK_WIDTH = 42;
-const THUMB_SIZE = 18;
-const TRACK_PADDING = 3;
-const THUMB_TRAVEL = TRACK_WIDTH - THUMB_SIZE - TRACK_PADDING * 2;
-const TOGGLE_SPRING = { damping: 18, stiffness: 320, mass: 0.6 };
+import { SwitchTrack } from './SwitchTrack';
 
 type ToggleRowProps = {
   title: string;
@@ -27,21 +16,7 @@ type ToggleRowProps = {
 
 /** A setting row that works as one big switch: tap anywhere on it to turn the setting on or off. */
 export function ToggleRow({ title, description, icon, value, onValueChange }: ToggleRowProps) {
-  const { palette, isDark } = useAppTheme();
-  const progress = useSharedValue(value ? 1 : 0);
-  const offColor = isDark ? '#334155' : '#CBD5E1';
-  const onColor = palette.indigo;
-
-  useEffect(() => {
-    progress.set(withSpring(value ? 1 : 0, TOGGLE_SPRING));
-  }, [value, progress]);
-
-  const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.get(), [0, 1], [offColor, onColor]),
-  }));
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: progress.get() * THUMB_TRAVEL }],
-  }));
+  const { palette } = useAppTheme();
 
   return (
     <PressableScale
@@ -68,25 +43,7 @@ export function ToggleRow({ title, description, icon, value, onValueChange }: To
         <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</Text>
         <Text className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</Text>
       </View>
-      <Animated.View style={[styles.track, trackStyle]}>
-        <Animated.View style={[styles.thumb, thumbStyle]} />
-      </Animated.View>
+      <SwitchTrack value={value} />
     </PressableScale>
   );
 }
-
-const styles = StyleSheet.create({
-  track: {
-    width: TRACK_WIDTH,
-    height: THUMB_SIZE + TRACK_PADDING * 2,
-    borderRadius: (THUMB_SIZE + TRACK_PADDING * 2) / 2,
-    padding: TRACK_PADDING,
-  },
-  thumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: THUMB_SIZE / 2,
-    backgroundColor: '#FFFFFF',
-    boxShadow: '0px 1px 3px rgba(15, 23, 42, 0.3)',
-  },
-});

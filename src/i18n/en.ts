@@ -4,6 +4,25 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+/** One name per agent, used everywhere an agent is mentioned. */
+const AGENT_NAMES = {
+  orchestrator: 'Orchestrator Agent',
+  sourcing: 'Sourcing Agent',
+  matching: 'Matching Agent',
+  scheduling: 'Scheduling Agent',
+  offer: 'Offer Agent',
+  selfHealing: 'Self-Healing monitor',
+};
+
+const AGENT_ROLES = {
+  orchestrator: 'Hands work from agent to agent and escalates decisions to you.',
+  sourcing: 'Posts the role and imports CVs from your channels.',
+  matching: 'Scores every CV against the requirements.',
+  scheduling: 'Books interviews with shortlisted candidates.',
+  offer: 'Drafts offers for finalists.',
+  selfHealing: 'Spots bottlenecks and proposes fixes.',
+};
+
 /** English UI copy. Its shape is the `Dictionary` type every other language must match. */
 export const en = {
   brand: {
@@ -38,6 +57,8 @@ export const en = {
     },
     agentsOnline: (count: number) => (count === 1 ? '1 AI agent online' : `${count} AI agents online`),
     orchestratorMonitoring: 'Orchestrator is monitoring',
+    agentsPaused: 'All AI agents paused',
+    resumeInAgents: 'Resume them in AI Agents',
     closeMenu: 'Close menu',
   },
   dashboard: {
@@ -263,18 +284,8 @@ export const en = {
       channels: 'Sourcing channels',
       channelsHint: 'The Sourcing Agent posts the role and imports CVs from each one.',
       agents: 'AI agents',
-      names: {
-        sourcing: 'Sourcing Agent',
-        matching: 'Matching Agent',
-        scheduling: 'Scheduling Agent',
-        selfHealing: 'Self-Healing monitor',
-      },
-      descriptions: {
-        sourcing: 'Posts the role and imports CVs from your channels.',
-        matching: 'Scores every CV against the requirements.',
-        scheduling: 'Books interviews with shortlisted candidates.',
-        selfHealing: 'Spots bottlenecks and proposes fixes.',
-      },
+      names: AGENT_NAMES,
+      descriptions: AGENT_ROLES,
       targetMatchRate: 'Target match rate',
       targetHint: 'The Self-Healing monitor alerts you when the campaign falls below it.',
     },
@@ -388,6 +399,8 @@ export const en = {
     },
     openAlerts: 'Open alerts',
     openAlertsHint: 'Check the AI root cause, then approve a fix. The Orchestrator applies it and keeps watching.',
+    monitorPaused: "The Self-Healing monitor is paused, so it won't raise new alerts.",
+    resumeMonitor: 'Resume monitor',
     allClearTitle: 'No open bottlenecks',
     allClearBody: (campaigns: number) =>
       `The Orchestrator is monitoring ${campaigns} campaigns and will raise an alert here as soon as one slips.`,
@@ -489,6 +502,138 @@ export const en = {
     undo: 'Undo',
     applyError: "Couldn't apply the scenario. Please try again.",
     noCampaigns: 'No campaigns to simulate yet.',
+  },
+  agentsPage: {
+    title: 'AI Agents',
+    subtitle: (running: number, total: number, campaigns: number) =>
+      running === total
+        ? `All ${total} agents running · ${campaigns} campaigns`
+        : running === 0
+          ? `All agents paused · ${campaigns} campaigns`
+          : `${running} of ${total} agents running · ${campaigns} campaigns`,
+    names: AGENT_NAMES,
+    shortNames: {
+      orchestrator: 'Orchestrator',
+      sourcing: 'Sourcing',
+      matching: 'Matching',
+      scheduling: 'Scheduling',
+      offer: 'Offer',
+      selfHealing: 'Self-Healing',
+    },
+    roles: AGENT_ROLES,
+    status: { working: 'Working', idle: 'Idle', paused: 'Paused' },
+    stats: {
+      running: 'Agents running',
+      allRunning: 'All running',
+      paused: (count: number) => `${count} paused`,
+      tasksToday: 'Tasks done today',
+      vsYesterday: (percent: number) => `${percent >= 0 ? '+' : '−'}${Math.abs(percent)}% vs yesterday`,
+      hoursSaved: 'Hours saved this week',
+      hours: (value: number) => `${value} h`,
+      recruiterDays: (days: number) => (days === 1 ? 'About 1 recruiter day' : `About ${days} recruiter days`),
+      queued: 'Waiting in queues',
+      flowing: 'Moving normally',
+      held: (count: number) => `${count} held by paused agents`,
+    },
+    orchestrator: {
+      coordinating: (campaigns: number) => `Coordinating ${campaigns} campaigns`,
+      holding: 'Every agent is paused. New work waits in their queues.',
+      pauseAll: 'Pause all',
+      resumeAll: 'Resume all',
+      pauseAllA11y: 'Pause every AI agent',
+      resumeAllA11y: 'Resume every AI agent',
+      flowA11y: 'How candidates move from agent to agent',
+      queue: (count: number) => `${count} waiting`,
+      held: (count: number) => `${count} held`,
+      clear: 'Clear',
+      queueA11y: (count: number, agent: string) =>
+        count === 0 ? `Nothing waiting for the ${agent}` : `${count} waiting for the ${agent}`,
+      nodeA11y: (agent: string, status: string, done: number) => `${agent}: ${status}, ${done} done today`,
+      today: (count: number) => `${count} today`,
+      watcher: 'Watches every stage for bottlenecks',
+    },
+    card: {
+      doing: {
+        sourcing: (campaigns: number) =>
+          campaigns === 1 ? 'Searching your channels for 1 campaign' : `Searching your channels for ${campaigns} campaigns`,
+        matching: (queued: number) => (queued === 1 ? 'Scoring 1 CV' : `Scoring ${queued} CVs`),
+        scheduling: (queued: number) =>
+          queued === 1 ? 'Finding an interview slot for 1 candidate' : `Finding interview slots for ${queued} candidates`,
+        offer: (queued: number) => (queued === 1 ? 'Drafting 1 offer' : `Drafting ${queued} offers`),
+        selfHealing: (campaigns: number) => (campaigns === 1 ? 'Watching 1 campaign' : `Watching ${campaigns} campaigns`),
+      },
+      idle: {
+        sourcing: 'Waiting for open roles',
+        matching: 'Waiting for new CVs',
+        scheduling: 'Waiting for shortlisted candidates',
+        offer: 'Waiting for finalists',
+        selfHealing: 'Waiting for live campaigns',
+      },
+      waiting: (queued: number) => (queued === 0 ? 'Nothing waiting' : `${queued} waiting`),
+      done: {
+        sourcing: 'CVs imported today',
+        matching: 'CVs scored today',
+        scheduling: 'Interviews booked today',
+        offer: 'Offers drafted today',
+        selfHealing: 'Checks run today',
+      },
+      agreement: 'HR agreement',
+      perItem: {
+        sourcing: 'Per CV',
+        matching: 'Per CV',
+        scheduling: 'Per booking',
+        offer: 'Per draft',
+        selfHealing: 'Per check',
+      },
+      duration: (seconds: number) => (seconds < 60 ? `${seconds} s` : `${Math.round(seconds / 60)} min`),
+      campaigns: (count: number, total: number) => `On ${count} of ${total} campaigns`,
+      everyCampaign: 'On every campaign',
+      lastActive: (when: string) => `Last task ${when}`,
+      switchHint: 'Pauses or resumes this agent on every campaign',
+      offerNote: 'Every offer waits for your sign-off.',
+      openAlerts: (count: number) => (count === 1 ? '1 alert waiting for you' : `${count} alerts waiting for you`),
+    },
+    activity: {
+      title: 'Live activity',
+      subtitle: 'What the agents are doing, as it happens',
+      live: 'Live',
+      paused: 'Updates paused',
+      pauseA11y: 'Pause live updates',
+      resumeA11y: 'Resume live updates',
+      filterA11y: 'Show activity from',
+      all: 'All',
+      showMore: 'Show more',
+      empty: 'Nothing from this agent yet.',
+      events: {
+        cvsImported: (count: number, channel: string) =>
+          count === 1 ? `Imported 1 CV from ${channel}` : `Imported ${count} CVs from ${channel}`,
+        cvsScored: (count: number) => (count === 1 ? 'Scored 1 new CV' : `Scored ${count} new CVs`),
+        shortlistHandoff: (count: number, agent: string) =>
+          count === 1
+            ? `Handed 1 shortlisted candidate to the ${agent}`
+            : `Handed ${count} shortlisted candidates to the ${agent}`,
+        interviewBooked: (candidate: string) => `Booked an interview with ${candidate}`,
+        offerDrafted: (candidate: string) => `Drafted an offer for ${candidate}, ready for your sign-off`,
+        healthCheck: (campaigns: number) => `Checked ${campaigns} campaigns: no new bottlenecks`,
+        bottleneckFlagged: (issue: string) => `Raised an alert: ${issue}`,
+        fixApplied: (fix: string) => `Applied the fix you approved: ${fix}`,
+        setupUpdated: 'Updated the job posts and agents to the new setup',
+        campaignLaunched: (agents: number) => `Launched the campaign with ${agents} agents`,
+        agentPaused: (agent: string) => `You paused the ${agent}`,
+        agentResumed: (agent: string) => `You resumed the ${agent}`,
+        agentsPaused: (count: number) => `You paused ${count} agents`,
+        agentsResumed: (count: number) => `You resumed ${count} agents`,
+        allPaused: 'You paused every agent',
+        allResumed: 'You resumed every agent',
+      },
+    },
+    toast: {
+      paused: (agent: string) => `${agent} paused. New work will wait in its queue.`,
+      resumed: (agent: string) => `${agent} resumed.`,
+      allPaused: 'Every agent paused. New work will wait in their queues.',
+      allResumed: 'Every agent resumed.',
+      undo: 'Undo',
+    },
   },
   time: {
     justNow: 'just now',

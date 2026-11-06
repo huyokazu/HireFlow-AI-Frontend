@@ -99,23 +99,33 @@ export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user
 
       <View className="gap-1 px-3">
         {/* AI agent status: glows emerald in dark mode so "live" reads at a glance. */}
-        <View
-          className="mb-2 flex-row items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-400/25 dark:bg-emerald-500/10"
-          style={{ boxShadow: palette.shadow.agentGlow }}
-        >
-          <View className="h-2.5 w-2.5 items-center justify-center">
-            <PulseRing color={palette.emerald} active size={10} />
-            <View className="h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+        {agentsOnline > 0 ? (
+          <View
+            className="mb-2 flex-row items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-400/25 dark:bg-emerald-500/10"
+            style={{ boxShadow: palette.shadow.agentGlow }}
+          >
+            <View className="h-2.5 w-2.5 items-center justify-center">
+              <PulseRing color={palette.emerald} active size={10} />
+              <View className="h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                {t.nav.agentsOnline(agentsOnline)}
+              </Text>
+              <Text className="text-xs text-emerald-700 dark:text-emerald-400/80">
+                {t.nav.orchestratorMonitoring}
+              </Text>
+            </View>
           </View>
-          <View className="flex-1">
-            <Text className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-              {t.nav.agentsOnline(agentsOnline)}
-            </Text>
-            <Text className="text-xs text-emerald-700 dark:text-emerald-400/80">
-              {t.nav.orchestratorMonitoring}
-            </Text>
+        ) : (
+          <View className="mb-2 flex-row items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-400/25 dark:bg-amber-500/10">
+            <Ionicons name="pause-circle" size={16} color={palette.amber} />
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-amber-900 dark:text-amber-200">{t.nav.agentsPaused}</Text>
+              <Text className="text-xs text-amber-700 dark:text-amber-300/80">{t.nav.resumeInAgents}</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <NavRow
           item={SETTINGS_ITEM}

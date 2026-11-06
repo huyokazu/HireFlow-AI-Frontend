@@ -2,6 +2,24 @@ import type { Dictionary } from './en';
 
 const WEEKDAYS = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 
+const AGENT_NAMES = {
+  orchestrator: 'Agent Điều phối',
+  sourcing: 'Agent Tìm nguồn',
+  matching: 'Agent So khớp',
+  scheduling: 'Agent Lên lịch',
+  offer: 'Agent Offer',
+  selfHealing: 'Giám sát Tự phục hồi',
+};
+
+const AGENT_ROLES = {
+  orchestrator: 'Chuyển việc từ agent này sang agent khác và chuyển các quyết định cho bạn.',
+  sourcing: 'Đăng tin và thu thập CV từ các kênh của bạn.',
+  matching: 'Chấm điểm mọi CV theo yêu cầu.',
+  scheduling: 'Đặt lịch phỏng vấn với ứng viên được chọn.',
+  offer: 'Soạn offer cho ứng viên vòng cuối.',
+  selfHealing: 'Phát hiện điểm nghẽn và đề xuất cách xử lý.',
+};
+
 /** Vietnamese UI copy. Product names (AI Agent, Digital Twin) stay in English, as Vietnamese teams use them. */
 export const vi: Dictionary = {
   brand: {
@@ -36,6 +54,8 @@ export const vi: Dictionary = {
     },
     agentsOnline: (count: number) => `${count} AI Agent đang hoạt động`,
     orchestratorMonitoring: 'Agent Điều phối đang giám sát',
+    agentsPaused: 'Mọi AI Agent đang tạm dừng',
+    resumeInAgents: 'Cho chạy tiếp trong mục AI Agent',
     closeMenu: 'Đóng menu',
   },
   dashboard: {
@@ -261,18 +281,8 @@ export const vi: Dictionary = {
       channels: 'Kênh tìm ứng viên',
       channelsHint: 'Agent Tìm nguồn đăng tin và thu thập CV từ từng kênh.',
       agents: 'AI Agent',
-      names: {
-        sourcing: 'Agent Tìm nguồn',
-        matching: 'Agent So khớp',
-        scheduling: 'Agent Lên lịch',
-        selfHealing: 'Giám sát Tự phục hồi',
-      },
-      descriptions: {
-        sourcing: 'Đăng tin và thu thập CV từ các kênh của bạn.',
-        matching: 'Chấm điểm mọi CV theo yêu cầu.',
-        scheduling: 'Đặt lịch phỏng vấn với ứng viên được chọn.',
-        selfHealing: 'Phát hiện điểm nghẽn và đề xuất cách xử lý.',
-      },
+      names: AGENT_NAMES,
+      descriptions: AGENT_ROLES,
       targetMatchRate: 'Tỷ lệ phù hợp mục tiêu',
       targetHint: 'Giám sát Tự phục hồi sẽ cảnh báo khi chiến dịch xuống dưới mức này.',
     },
@@ -386,6 +396,8 @@ export const vi: Dictionary = {
     openAlerts: 'Cảnh báo cần xử lý',
     openAlertsHint:
       'Xem AI phân tích nguyên nhân gốc rồi phê duyệt một phương án. Agent Điều phối sẽ áp dụng và tiếp tục theo dõi.',
+    monitorPaused: 'Giám sát Tự phục hồi đang tạm dừng nên sẽ không gửi cảnh báo mới.',
+    resumeMonitor: 'Cho giám sát chạy tiếp',
     allClearTitle: 'Không có điểm nghẽn nào',
     allClearBody: (campaigns: number) =>
       `Agent Điều phối đang giám sát ${campaigns} chiến dịch và sẽ cảnh báo tại đây ngay khi có chiến dịch chệch hướng.`,
@@ -489,6 +501,132 @@ export const vi: Dictionary = {
     undo: 'Hoàn tác',
     applyError: 'Không thể áp dụng kịch bản. Vui lòng thử lại.',
     noCampaigns: 'Chưa có chiến dịch nào để mô phỏng.',
+  },
+  agentsPage: {
+    title: 'AI Agent',
+    subtitle: (running: number, total: number, campaigns: number) =>
+      running === total
+        ? `Cả ${total} agent đang chạy · ${campaigns} chiến dịch`
+        : running === 0
+          ? `Mọi agent đang tạm dừng · ${campaigns} chiến dịch`
+          : `${running}/${total} agent đang chạy · ${campaigns} chiến dịch`,
+    names: AGENT_NAMES,
+    shortNames: {
+      orchestrator: 'Điều phối',
+      sourcing: 'Tìm nguồn',
+      matching: 'So khớp',
+      scheduling: 'Lên lịch',
+      offer: 'Offer',
+      selfHealing: 'Tự phục hồi',
+    },
+    roles: AGENT_ROLES,
+    status: { working: 'Đang làm việc', idle: 'Đang chờ', paused: 'Tạm dừng' },
+    stats: {
+      running: 'Agent đang chạy',
+      allRunning: 'Tất cả đang chạy',
+      paused: (count: number) => `${count} đang tạm dừng`,
+      tasksToday: 'Việc đã xong hôm nay',
+      vsYesterday: (percent: number) => `${percent >= 0 ? '+' : '−'}${Math.abs(percent)}% so với hôm qua`,
+      hoursSaved: 'Giờ tiết kiệm tuần này',
+      hours: (value: number) => `${value} giờ`,
+      recruiterDays: (days: number) => `Khoảng ${days} ngày công tuyển dụng`,
+      queued: 'Việc đang chờ',
+      flowing: 'Đang chạy bình thường',
+      held: (count: number) => `${count} việc bị giữ do agent tạm dừng`,
+    },
+    orchestrator: {
+      coordinating: (campaigns: number) => `Đang điều phối ${campaigns} chiến dịch`,
+      holding: 'Mọi agent đang tạm dừng. Việc mới sẽ chờ trong hàng đợi.',
+      pauseAll: 'Tạm dừng tất cả',
+      resumeAll: 'Chạy tiếp tất cả',
+      pauseAllA11y: 'Tạm dừng mọi AI Agent',
+      resumeAllA11y: 'Cho mọi AI Agent chạy tiếp',
+      flowA11y: 'Cách ứng viên được chuyển từ agent này sang agent khác',
+      queue: (count: number) => `${count} đang chờ`,
+      held: (count: number) => `${count} bị giữ`,
+      clear: 'Trống',
+      queueA11y: (count: number, agent: string) =>
+        count === 0 ? `Không có việc nào chờ ${agent}` : `${count} việc đang chờ ${agent}`,
+      nodeA11y: (agent: string, status: string, done: number) => `${agent}: ${status}, xong ${done} việc hôm nay`,
+      today: (count: number) => `${count} hôm nay`,
+      watcher: 'Theo dõi mọi giai đoạn để phát hiện điểm nghẽn',
+    },
+    card: {
+      doing: {
+        sourcing: (campaigns: number) => `Đang tìm ứng viên cho ${campaigns} chiến dịch`,
+        matching: (queued: number) => `Đang chấm điểm ${queued} CV`,
+        scheduling: (queued: number) => `Đang tìm lịch phỏng vấn cho ${queued} ứng viên`,
+        offer: (queued: number) => `Đang soạn ${queued} offer`,
+        selfHealing: (campaigns: number) => `Đang theo dõi ${campaigns} chiến dịch`,
+      },
+      idle: {
+        sourcing: 'Đang chờ vị trí cần tuyển',
+        matching: 'Đang chờ CV mới',
+        scheduling: 'Đang chờ ứng viên được chọn',
+        offer: 'Đang chờ ứng viên vòng cuối',
+        selfHealing: 'Đang chờ chiến dịch chạy',
+      },
+      waiting: (queued: number) => (queued === 0 ? 'Không có việc đang chờ' : `${queued} việc đang chờ`),
+      done: {
+        sourcing: 'CV thu thập hôm nay',
+        matching: 'CV chấm điểm hôm nay',
+        scheduling: 'Lịch phỏng vấn hôm nay',
+        offer: 'Offer soạn hôm nay',
+        selfHealing: 'Lượt kiểm tra hôm nay',
+      },
+      agreement: 'HR đồng ý',
+      perItem: {
+        sourcing: 'Mỗi CV',
+        matching: 'Mỗi CV',
+        scheduling: 'Mỗi lịch hẹn',
+        offer: 'Mỗi bản offer',
+        selfHealing: 'Mỗi lượt kiểm tra',
+      },
+      duration: (seconds: number) => (seconds < 60 ? `${seconds} giây` : `${Math.round(seconds / 60)} phút`),
+      campaigns: (count: number, total: number) => `Chạy trên ${count}/${total} chiến dịch`,
+      everyCampaign: 'Chạy trên mọi chiến dịch',
+      lastActive: (when: string) => `Việc gần nhất ${when}`,
+      switchHint: 'Tạm dừng hoặc cho agent này chạy tiếp trên mọi chiến dịch',
+      offerNote: 'Mọi offer đều chờ bạn duyệt.',
+      openAlerts: (count: number) => `${count} cảnh báo đang chờ bạn`,
+    },
+    activity: {
+      title: 'Hoạt động trực tiếp',
+      subtitle: 'Các agent đang làm gì, ngay khi việc diễn ra',
+      live: 'Trực tiếp',
+      paused: 'Đã dừng cập nhật',
+      pauseA11y: 'Dừng cập nhật trực tiếp',
+      resumeA11y: 'Tiếp tục cập nhật trực tiếp',
+      filterA11y: 'Xem hoạt động của',
+      all: 'Tất cả',
+      showMore: 'Xem thêm',
+      empty: 'Agent này chưa có hoạt động nào.',
+      events: {
+        cvsImported: (count: number, channel: string) => `Đã thu thập ${count} CV từ ${channel}`,
+        cvsScored: (count: number) => `Đã chấm điểm ${count} CV mới`,
+        shortlistHandoff: (count: number, agent: string) => `Đã chuyển ${count} ứng viên được chọn cho ${agent}`,
+        interviewBooked: (candidate: string) => `Đã đặt lịch phỏng vấn với ${candidate}`,
+        offerDrafted: (candidate: string) => `Đã soạn offer cho ${candidate}, đang chờ bạn duyệt`,
+        healthCheck: (campaigns: number) => `Đã kiểm tra ${campaigns} chiến dịch: không có điểm nghẽn mới`,
+        bottleneckFlagged: (issue: string) => `Đã gửi cảnh báo: ${issue}`,
+        fixApplied: (fix: string) => `Đã áp dụng phương án bạn duyệt: ${fix}`,
+        setupUpdated: 'Đã cập nhật tin tuyển dụng và agent theo thiết lập mới',
+        campaignLaunched: (agents: number) => `Đã khởi chạy chiến dịch với ${agents} agent`,
+        agentPaused: (agent: string) => `Bạn đã tạm dừng ${agent}`,
+        agentResumed: (agent: string) => `Bạn đã cho ${agent} chạy tiếp`,
+        agentsPaused: (count: number) => `Bạn đã tạm dừng ${count} agent`,
+        agentsResumed: (count: number) => `Bạn đã cho ${count} agent chạy tiếp`,
+        allPaused: 'Bạn đã tạm dừng mọi agent',
+        allResumed: 'Bạn đã cho mọi agent chạy tiếp',
+      },
+    },
+    toast: {
+      paused: (agent: string) => `Đã tạm dừng ${agent}. Việc mới sẽ chờ trong hàng đợi.`,
+      resumed: (agent: string) => `${agent} đã chạy tiếp.`,
+      allPaused: 'Đã tạm dừng mọi agent. Việc mới sẽ chờ trong hàng đợi.',
+      allResumed: 'Mọi agent đã chạy tiếp.',
+      undo: 'Hoàn tác',
+    },
   },
   time: {
     justNow: 'vừa xong',
