@@ -10,6 +10,7 @@ import { ScreenContainer } from '../components/layout/ScreenContainer';
 import { SelfHealingAlertCard } from '../components/SelfHealingAlert';
 import { CampaignMonitorPanel, type MonitorStatus } from '../components/selfHealing/CampaignMonitorPanel';
 import { HealingLogPanel } from '../components/selfHealing/HealingLogPanel';
+import { Button } from '../components/ui/Button';
 import { useI18n, type Dictionary } from '../i18n';
 import { PREVIOUS_RESOLUTION_HOURS, type BottleneckAlert, type HealingRecord } from '../services/selfHealing';
 import { useWorkspace } from '../state/WorkspaceProvider';
@@ -29,8 +30,18 @@ export function SelfHealingScreen() {
   const { t } = useI18n();
   const { palette } = useAppTheme();
   const router = useRouter();
-  const { summary, alerts, openAlerts, approvals, healingLog, approveFix, dismissAlert, reopenAlert } =
-    useWorkspace();
+  const {
+    summary,
+    alerts,
+    openAlerts,
+    approvals,
+    healingLog,
+    approveFix,
+    dismissAlert,
+    reopenAlert,
+    pausedAgents,
+    setPausedAgents,
+  } = useWorkspace();
   const campaigns = summary?.campaigns ?? [];
 
   // Open alerts win over fixes in progress: they're the ones that need a decision.
@@ -53,6 +64,25 @@ export function SelfHealingScreen() {
         <ActivityIndicator className="mt-24" color={palette.indigo} />
       ) : (
         <>
+          {/* Paused on the AI Agents page: nothing new gets flagged until it runs again. */}
+          {pausedAgents.selfHealing && (
+            <Animated.View
+              entering={FadeInDown.duration(400)}
+              exiting={FadeOut.duration(200)}
+              className="mt-6 flex-row flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 dark:border-amber-400/25 dark:bg-amber-500/10"
+            >
+              <Ionicons name="pause-circle" size={18} color={palette.amber} />
+              <Text className="min-w-[200px] flex-1 text-sm text-amber-900 dark:text-amber-100">
+                {t.selfHealingPage.monitorPaused}
+              </Text>
+              <Button
+                variant="secondary"
+                icon="play"
+                label={t.selfHealingPage.resumeMonitor}
+                onPress={() => setPausedAgents({ ...pausedAgents, selfHealing: false })}
+              />
+            </Animated.View>
+          )}
           <View className="mt-6">
             <SummaryStats stats={buildStats(openAlerts, healingLog, t)} enterDelay={STATS_DELAY} />
           </View>

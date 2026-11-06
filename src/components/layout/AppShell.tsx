@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { pick } = useI18n();
-  const { summary, openAlerts } = useWorkspace();
+  const { summary, openAlerts, agentsOnline } = useWorkspace();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const navigate = useCallback(
@@ -59,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <Sidebar
       activeKey={navKeyForPath(pathname)}
       onNavigate={navigate}
-      agentsOnline={summary?.agentsOnline ?? 0}
+      agentsOnline={agentsOnline}
       user={{ name: CURRENT_USER.name, title: pick(CURRENT_USER.title) }}
       badges={{
         candidates: { count: summary?.candidatesInPipeline ?? 0 },
