@@ -24,9 +24,11 @@ export function AppHeader({ title, subtitle, showNewCampaign = true }: AppHeader
   const { t } = useI18n();
   const { palette } = useAppTheme();
   const { openMenu } = useShell();
-  const { alerts } = useWorkspace();
+  const { openAlerts } = useWorkspace();
   const router = useRouter();
-  const notificationCount = alerts.length;
+  const notificationCount = openAlerts.length;
+  // Self-Healing alerts are the only notifications so far, so the bell opens their page.
+  const openNotifications = () => router.navigate('/self-healing');
 
   return (
     <Animated.View entering={FadeInDown.duration(450)} className="gap-5">
@@ -46,7 +48,7 @@ export function AppHeader({ title, subtitle, showNewCampaign = true }: AppHeader
           <View className="flex-row items-center gap-2">
             <LanguageToggle />
             <ThemeToggle />
-            <NotificationButton count={notificationCount} />
+            <NotificationButton count={notificationCount} onPress={openNotifications} />
           </View>
         </View>
       )}
@@ -71,7 +73,7 @@ export function AppHeader({ title, subtitle, showNewCampaign = true }: AppHeader
             <>
               <LanguageToggle />
               <ThemeToggle />
-              <NotificationButton count={notificationCount} />
+              <NotificationButton count={notificationCount} onPress={openNotifications} />
             </>
           )}
           {showNewCampaign && (
@@ -91,13 +93,14 @@ export function AppHeader({ title, subtitle, showNewCampaign = true }: AppHeader
   );
 }
 
-function NotificationButton({ count }: { count: number }) {
+function NotificationButton({ count, onPress }: { count: number; onPress: () => void }) {
   const { t } = useI18n();
   const { palette } = useAppTheme();
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={count > 0 ? t.header.notificationsUnread(count) : t.header.notifications}
+      onPress={onPress}
       className="h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white/80 hover:bg-slate-100 active:bg-slate-100 dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
     >
       <Ionicons name="notifications-outline" size={20} color={palette.icon.strong} />

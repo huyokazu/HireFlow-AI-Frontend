@@ -31,7 +31,8 @@ export function CandidateReviewScreen() {
     fetchMatchedCandidates(CAMPAIGN_ID).then((result) => {
       if (!cancelled) setCandidates(result);
     });
-    fetchActiveBottleneckAlerts(CAMPAIGN_ID).then(([latest]) => {
+    fetchActiveBottleneckAlerts().then((alerts) => {
+      const latest = alerts.find((alert) => alert.campaignId === CAMPAIGN_ID);
       if (!cancelled && latest) setOpenAlert(latest);
     });
     return () => {

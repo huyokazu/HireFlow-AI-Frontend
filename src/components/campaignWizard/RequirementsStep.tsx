@@ -1,15 +1,13 @@
 import { View } from 'react-native';
 
 import { useI18n } from '../../i18n';
-import { suggestSkills, type CampaignDraft } from '../../services/campaigns';
+import { EXPERIENCE_LIMITS, suggestSkills, type CampaignDraft } from '../../services/campaigns';
 import { FormField } from '../form/FormField';
 import { NumberStepper } from '../form/NumberStepper';
 import { SalaryBandField } from './SalaryBandField';
 import { SkillsInput } from './SkillsInput';
 import { StepHeading } from './StepHeading';
 import type { FieldErrors } from './validation';
-
-const MAX_EXPERIENCE_YEARS = 15;
 
 type RequirementsStepProps = {
   draft: CampaignDraft;
@@ -46,8 +44,8 @@ export function RequirementsStep({ draft, update, errors, marketMedian }: Requir
             <NumberStepper
               value={draft.minExperience}
               onChange={(minExperience) => update({ minExperience })}
-              min={0}
-              max={MAX_EXPERIENCE_YEARS}
+              min={EXPERIENCE_LIMITS.min}
+              max={EXPERIENCE_LIMITS.max}
               suffix={copy.yearsUnit}
               label={copy.minExperience}
             />

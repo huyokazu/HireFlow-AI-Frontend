@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
 
 import { CandidateCardSwap } from '../components/CandidateCardSwap';
 import { ActiveCampaignsPanel } from '../components/dashboard/ActiveCampaignsPanel';
@@ -44,7 +44,7 @@ function DashboardOverview() {
   const { t, pick } = useI18n();
   const { palette } = useAppTheme();
   const router = useRouter();
-  const { summary, matchedCandidates, pipeline, alerts, approveFix, dismissAlert, shortlistCandidate } =
+  const { summary, matchedCandidates, pipeline, alerts, approvals, approveFix, dismissAlert, shortlistCandidate } =
     useWorkspace();
 
   // Shortlisting moves a candidate on the board, so the deck marks its cards already past screening.
@@ -110,9 +110,19 @@ function DashboardOverview() {
               <SelfHealingAlertCard
                 key={alert.id}
                 alert={alert}
+                approvedFixId={approvals[alert.id]?.fixId}
                 onApproveFix={approveFix}
                 onDismiss={dismissAlert}
                 enterDelay={PANEL_DELAYS.alert}
+              />
+            </Animated.View>
+          )}
+          {/* The dashboard shows the most urgent alert; the rest wait on the Self-Healing page. */}
+          {alerts.length > 1 && (
+            <Animated.View entering={FadeIn.delay(PANEL_DELAYS.alert).duration(300)} className="-mt-3 items-end">
+              <PanelLink
+                label={t.dashboard.moreAlerts(alerts.length - 1)}
+                onPress={() => router.navigate('/self-healing')}
               />
             </Animated.View>
           )}

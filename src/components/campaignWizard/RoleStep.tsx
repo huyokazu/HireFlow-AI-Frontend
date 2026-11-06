@@ -6,6 +6,7 @@ import { useI18n } from '../../i18n';
 import {
   DEPARTMENT_NAMES,
   DEPARTMENTS,
+  OPENINGS_LIMITS,
   SENIORITIES,
   WORK_MODES,
   type CampaignDraft,
@@ -27,7 +28,6 @@ const DEPARTMENT_ICONS: Record<DepartmentKey, ComponentProps<typeof Ionicons>['n
   operations: 'settings-outline',
   sales: 'briefcase-outline',
 };
-const MAX_OPENINGS = 20;
 
 type StepProps = {
   draft: CampaignDraft;
@@ -112,8 +112,8 @@ export function RoleStep({ draft, update, errors }: StepProps) {
             <NumberStepper
               value={draft.headcount}
               onChange={(headcount) => update({ headcount })}
-              min={1}
-              max={MAX_OPENINGS}
+              min={OPENINGS_LIMITS.min}
+              max={OPENINGS_LIMITS.max}
               label={copy.openings}
             />
           </FormField>

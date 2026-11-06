@@ -82,6 +82,10 @@ export const EMPTY_CAMPAIGN_DRAFT: CampaignDraft = {
 };
 
 export const SALARY_LIMITS = { min: 30, max: 300, step: 5 };
+/** Years of experience a campaign can ask for. */
+export const EXPERIENCE_LIMITS = { min: 0, max: 15 };
+/** People one campaign can hire for. */
+export const OPENINGS_LIMITS = { min: 1, max: 20 };
 
 // Keyword rules (English and Vietnamese titles) standing in for the AI skill suggester;
 // skills from earlier rules come first.
@@ -159,6 +163,124 @@ export async function launchCampaign(draft: CampaignDraft): Promise<CampaignSumm
     targetMatchRate: draft.targetMatchRate,
     health: 'on_track',
   };
+}
+
+const ALL_AGENTS: Record<CampaignAgent, boolean> = {
+  sourcing: true,
+  matching: true,
+  scheduling: true,
+  selfHealing: true,
+};
+
+/** How each live campaign is set up today: the starting point for Digital Twin scenarios. */
+const MOCK_SETUPS: Record<string, CampaignDraft> = {
+  'senior-frontend-engineer': {
+    title: 'Senior Frontend Engineer',
+    department: 'engineering',
+    location: 'Ho Chi Minh City',
+    workMode: 'hybrid',
+    seniority: 'senior',
+    headcount: 2,
+    skills: ['React', 'TypeScript', 'Next.js', 'GraphQL', 'Testing Library', 'Web Performance', 'Accessibility'],
+    minExperience: 7,
+    salaryMin: 90,
+    salaryMax: 110,
+    channels: ['itviec', 'topcv'],
+    agents: ALL_AGENTS,
+    targetMatchRate: 60,
+  },
+  'product-designer': {
+    title: 'Product Designer',
+    department: 'design',
+    location: 'Ho Chi Minh City',
+    workMode: 'hybrid',
+    seniority: 'mid',
+    headcount: 1,
+    skills: ['Figma', 'Prototyping', 'Design Systems', 'User Research'],
+    minExperience: 3,
+    salaryMin: 90,
+    salaryMax: 110,
+    channels: ['linkedin', 'topcv', 'referrals'],
+    agents: ALL_AGENTS,
+    targetMatchRate: 60,
+  },
+  'data-engineer': {
+    title: 'Data Engineer',
+    department: 'data',
+    location: 'Ho Chi Minh City',
+    workMode: 'onsite',
+    seniority: 'senior',
+    headcount: 1,
+    skills: ['Spark', 'Kafka', 'Airflow', 'dbt', 'Scala', 'SQL', 'Python', 'AWS'],
+    minExperience: 7,
+    salaryMin: 110,
+    salaryMax: 130,
+    channels: ['topcv'],
+    agents: ALL_AGENTS,
+    targetMatchRate: 55,
+  },
+  'customer-success-lead': {
+    title: 'Customer Success Lead',
+    department: 'operations',
+    location: 'Hanoi',
+    workMode: 'hybrid',
+    seniority: 'lead',
+    headcount: 1,
+    skills: ['SaaS Onboarding', 'Churn Analysis', 'HubSpot', 'Salesforce'],
+    minExperience: 6,
+    salaryMin: 135,
+    salaryMax: 160,
+    channels: ['linkedin', 'vietnamworks', 'referrals', 'topcv'],
+    agents: ALL_AGENTS,
+    targetMatchRate: 65,
+  },
+  'backend-engineer-go': {
+    title: 'Backend Engineer (Go)',
+    department: 'engineering',
+    location: 'Ho Chi Minh City',
+    workMode: 'hybrid',
+    seniority: 'senior',
+    headcount: 2,
+    skills: ['Go', 'PostgreSQL', 'gRPC', 'Kubernetes', 'Docker'],
+    minExperience: 4,
+    salaryMin: 140,
+    salaryMax: 165,
+    channels: ['itviec', 'linkedin', 'referrals'],
+    agents: ALL_AGENTS,
+    targetMatchRate: 60,
+  },
+  'hr-business-partner': {
+    title: 'HR Business Partner',
+    department: 'operations',
+    location: 'Ho Chi Minh City',
+    workMode: 'onsite',
+    seniority: 'senior',
+    headcount: 1,
+    skills: ['Employee Relations', 'HR Analytics', 'Labor Law', 'Coaching'],
+    minExperience: 5,
+    salaryMin: 115,
+    salaryMax: 135,
+    channels: ['linkedin', 'vietnamworks', 'topcv', 'referrals'],
+    agents: ALL_AGENTS,
+    targetMatchRate: 65,
+  },
+};
+
+/**
+ * The current setup of every live campaign, keyed by campaign id.
+ * Mock implementation: replace with a select on the campaigns table.
+ */
+export async function fetchCampaignSetups(): Promise<Record<string, CampaignDraft>> {
+  return MOCK_SETUPS;
+}
+
+/**
+ * Saves a new setup for a live campaign. The Orchestrator Agent then updates the job posts,
+ * channels and agents to match.
+ * Mock implementation: replace with an update on the campaigns table plus an Orchestrator API call.
+ */
+export async function updateCampaignSetup(_campaignId: string, _setup: CampaignDraft): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 900));
 }
 
 function slugify(value: string): string {
