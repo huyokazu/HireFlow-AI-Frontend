@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { pick } = useI18n();
-  const { summary, alerts } = useWorkspace();
+  const { summary, openAlerts } = useWorkspace();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const navigate = useCallback(
@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       user={{ name: CURRENT_USER.name, title: pick(CURRENT_USER.title) }}
       badges={{
         candidates: { count: summary?.candidatesInPipeline ?? 0 },
-        'self-healing': { count: alerts.length, tone: 'alert' },
+        'self-healing': { count: openAlerts.length, tone: 'alert' },
       }}
     />
   );

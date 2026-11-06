@@ -1,17 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { launchCampaign as launchCampaignRequest, type CampaignDraft } from '../services/campaigns';
+import {
+  fetchCampaignSetups,
+  launchCampaign as launchCampaignRequest,
+  updateCampaignSetup,
+  type CampaignDraft,
+} from '../services/campaigns';
 import { fetchMatchedCandidates, type Candidate } from '../services/candidates';
 import { fetchDashboardSummary, type CampaignSummary, type DashboardSummary } from '../services/dashboard';
+import { calibrationOffset } from '../services/digitalTwin';
 import { fetchPipeline, saveCandidateStage, type PipelineCandidate, type PipelineStage } from '../services/pipeline';
 import {
   approveSuggestedFix,
   fetchActiveBottleneckAlerts,
+  fetchHealingHistory,
   type BottleneckAlert,
+  type HealingRecord,
   type SuggestedFix,
 } from '../services/selfHealing';
 
-/** The campaign whose matched candidates and alerts the dashboard features. */
+/** The campaign whose matched candidates the dashboard features. */
 export const FEATURED_CAMPAIGN_ID = 'senior-frontend-engineer';
 
 /** A stage change, kept so it can be undone. */
@@ -24,12 +32,25 @@ export type PipelineMove = {
   fromDaysInStage: number;
 };
 
+/** The fix HR approved for an alert, and when. */
+export type AlertApproval = { fixId: string; at: string };
+
 type Workspace = {
   summary: DashboardSummary | null;
   matchedCandidates: Candidate[] | null;
   pipeline: PipelineCandidate[] | null;
+  /** Alerts on screen: open ones, plus approved ones until HR closes them. */
   alerts: BottleneckAlert[];
+  /** Alerts still waiting for a decision. */
+  openAlerts: BottleneckAlert[];
+  /** Approved fixes, by alert id. */
+  approvals: Record<string, AlertApproval>;
+  /** Fixes and dismissals, newest first: this session's plus the last 30 days'. */
+  healingLog: HealingRecord[];
+  /** Hides an alert. Without an approved fix, it goes to the log as dismissed. */
   dismissAlert: (alert: BottleneckAlert) => void;
+  /** Brings back an alert that was dismissed without a fix. */
+  reopenAlert: (alertId: string) => void;
   approveFix: (alert: BottleneckAlert, fix: SuggestedFix) => Promise<void>;
   /** Moves a card to another stage. Returns `null` when nothing changed. */
   moveCandidate: (candidateId: string, to: PipelineStage) => PipelineMove | null;
@@ -37,6 +58,12 @@ type Workspace = {
   /** Shortlisting in the matched-candidates deck sends a not-yet-interviewed candidate to interview. */
   shortlistCandidate: (candidateId: string) => PipelineMove | null;
   launchCampaign: (draft: CampaignDraft) => Promise<CampaignSummary>;
+  /** How each campaign is set up today, by campaign id. */
+  campaignSetups: Record<string, CampaignDraft>;
+  /** Match-rate calibration per campaign, so the Digital Twin's baseline matches live results. */
+  twinOffsets: Record<string, number>;
+  /** Saves a new setup for a campaign, e.g. a Digital Twin scenario. */
+  applyCampaignSetup: (campaignId: string, setup: CampaignDraft) => Promise<void>;
 };
 
 const WorkspaceContext = createContext<Workspace | null>(null);
@@ -49,7 +76,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [matchedCandidates, setMatchedCandidates] = useState<Candidate[] | null>(null);
   const [pipeline, setPipelineState] = useState<PipelineCandidate[] | null>(null);
-  const [alerts, setAlerts] = useState<BottleneckAlert[]>([]);
+  const [allAlerts, setAllAlerts] = useState<BottleneckAlert[]>([]);
+  const [approvals, setApprovals] = useState<Record<string, AlertApproval>>({});
+  // Alert id → when it was hidden.
+  const [dismissals, setDismissals] = useState<Record<string, string>>({});
+  const [history, setHistory] = useState<HealingRecord[]>([]);
+  const [campaignSetups, setCampaignSetups] = useState<Record<string, CampaignDraft>>({});
+  const [twinOffsets, setTwinOffsets] = useState<Record<string, number>>({});
   // Mirrors `pipeline` so a move can report what it changed without waiting for a re-render.
   const pipelineRef = useRef<PipelineCandidate[] | null>(null);
 
@@ -64,27 +97,85 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       fetchDashboardSummary(),
       fetchMatchedCandidates(FEATURED_CAMPAIGN_ID),
       fetchPipeline(),
-      fetchActiveBottleneckAlerts(FEATURED_CAMPAIGN_ID),
-    ]).then(([summaryResult, matched, board, openAlerts]) => {
+      fetchActiveBottleneckAlerts(),
+      fetchHealingHistory(),
+      fetchCampaignSetups(),
+    ]).then(([summaryResult, matched, board, openAlerts, pastRecords, setups]) => {
       if (cancelled) return;
       setSummary(summaryResult);
       setMatchedCandidates(matched);
       setPipeline(board);
-      setAlerts(openAlerts);
+      setAllAlerts(openAlerts);
+      setHistory(pastRecords);
+      setCampaignSetups(setups);
+      // Calibrated once, against today's live match rates.
+      const offsets: Record<string, number> = {};
+      for (const campaign of summaryResult.campaigns) {
+        const setup = setups[campaign.id];
+        if (setup) offsets[campaign.id] = calibrationOffset(setup, campaign.matchRate);
+      }
+      setTwinOffsets(offsets);
     });
     return () => {
       cancelled = true;
     };
   }, [setPipeline]);
 
+  const alerts = useMemo(() => allAlerts.filter((alert) => !dismissals[alert.id]), [allAlerts, dismissals]);
+  const openAlerts = useMemo(() => alerts.filter((alert) => !approvals[alert.id]), [alerts, approvals]);
+
+  const healingLog = useMemo(() => {
+    const thisSession: HealingRecord[] = [];
+    for (const alert of allAlerts) {
+      const approval = approvals[alert.id];
+      const base = {
+        alertId: alert.id,
+        campaignId: alert.campaignId,
+        campaignName: alert.campaignName,
+        issue: alert.title,
+      };
+      if (approval) {
+        const fix = alert.suggestedFixes.find((item) => item.id === approval.fixId);
+        const { current, label } = alert.metric;
+        thisSession.push({
+          ...base,
+          id: `approved_${alert.id}`,
+          fix: fix?.actionLabel,
+          outcome: 'in_progress',
+          at: approval.at,
+          result: { label, before: current, after: Math.min(100, current + (fix?.expectedLift ?? 0)) },
+        });
+      } else if (dismissals[alert.id]) {
+        thisSession.push({ ...base, id: `dismissed_${alert.id}`, outcome: 'dismissed', at: dismissals[alert.id] });
+      }
+    }
+    return [...thisSession, ...history].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  }, [allAlerts, approvals, dismissals, history]);
+
   const dismissAlert = useCallback((alert: BottleneckAlert) => {
-    setAlerts((current) => current.filter((item) => item.id !== alert.id));
+    setDismissals((current) => ({ ...current, [alert.id]: new Date().toISOString() }));
   }, []);
 
-  const approveFix = useCallback(
-    (alert: BottleneckAlert, fix: SuggestedFix) => approveSuggestedFix(alert.id, fix.id),
-    [],
-  );
+  const reopenAlert = useCallback((alertId: string) => {
+    setDismissals((current) => {
+      const next = { ...current };
+      delete next[alertId];
+      return next;
+    });
+  }, []);
+
+  const approveFix = useCallback(async (alert: BottleneckAlert, fix: SuggestedFix) => {
+    await approveSuggestedFix(alert.id, fix.id);
+    setApprovals((current) => ({ ...current, [alert.id]: { fixId: fix.id, at: new Date().toISOString() } }));
+    // The Orchestrator applied the change, so the campaign's setup (and the Digital Twin's baseline) follows.
+    const { patch } = fix;
+    if (patch) {
+      setCampaignSetups((current) => {
+        const setup = current[alert.campaignId];
+        return setup ? { ...current, [alert.campaignId]: { ...setup, ...patch } } : current;
+      });
+    }
+  }, []);
 
   const moveCandidate = useCallback(
     (candidateId: string, to: PipelineStage): PipelineMove | null => {
@@ -140,7 +231,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           campaigns: [campaign, ...current.campaigns],
         },
     );
+    // A new campaign has no live results yet, so the Digital Twin uses the model as it is.
+    setCampaignSetups((current) => ({ ...current, [campaign.id]: draft }));
+    setTwinOffsets((current) => ({ ...current, [campaign.id]: 0 }));
     return campaign;
+  }, []);
+
+  const applyCampaignSetup = useCallback(async (campaignId: string, setup: CampaignDraft) => {
+    await updateCampaignSetup(campaignId, setup);
+    setCampaignSetups((current) => ({ ...current, [campaignId]: setup }));
   }, []);
 
   const value = useMemo<Workspace>(
@@ -149,24 +248,38 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       matchedCandidates,
       pipeline,
       alerts,
+      openAlerts,
+      approvals,
+      healingLog,
       dismissAlert,
+      reopenAlert,
       approveFix,
       moveCandidate,
       undoMove,
       shortlistCandidate,
       launchCampaign,
+      campaignSetups,
+      twinOffsets,
+      applyCampaignSetup,
     }),
     [
       summary,
       matchedCandidates,
       pipeline,
       alerts,
+      openAlerts,
+      approvals,
+      healingLog,
       dismissAlert,
+      reopenAlert,
       approveFix,
       moveCandidate,
       undoMove,
       shortlistCandidate,
       launchCampaign,
+      campaignSetups,
+      twinOffsets,
+      applyCampaignSetup,
     ],
   );
 

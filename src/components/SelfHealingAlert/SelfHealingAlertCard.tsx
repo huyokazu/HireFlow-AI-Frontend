@@ -112,6 +112,8 @@ type SelfHealingAlertCardProps = {
   onApproveFix: (alert: BottleneckAlert, fix: SuggestedFix) => Promise<void>;
   /** Shows the close and "Not now" controls when provided. */
   onDismiss?: (alert: BottleneckAlert) => void;
+  /** A fix already approved for this alert (e.g. on another screen): the card opens approved. */
+  approvedFixId?: string;
   /** Entrance delay, for staggering with other widgets. */
   enterDelay?: number;
 };
@@ -120,6 +122,7 @@ export function SelfHealingAlertCard({
   alert,
   onApproveFix,
   onDismiss,
+  approvedFixId,
   enterDelay = 0,
 }: SelfHealingAlertCardProps) {
   const { t, pick } = useI18n();
@@ -128,8 +131,8 @@ export function SelfHealingAlertCard({
   const mode = isDark ? 'dark' : 'light';
 
   const defaultFix = alert.suggestedFixes.find((fix) => fix.recommended) ?? alert.suggestedFixes[0];
-  const [selectedFixId, setSelectedFixId] = useState(defaultFix?.id);
-  const [status, setStatus] = useState<ApprovalStatus>('idle');
+  const [selectedFixId, setSelectedFixId] = useState(approvedFixId ?? defaultFix?.id);
+  const [status, setStatus] = useState<ApprovalStatus>(approvedFixId ? 'approved' : 'idle');
 
   const selectedFix = alert.suggestedFixes.find((fix) => fix.id === selectedFixId);
   const isApproved = status === 'approved';
@@ -147,7 +150,7 @@ export function SelfHealingAlertCard({
   const metricTone = isApproved ? TONES.resolved : severityTone;
 
   // The green wash fades in over the severity wash instead of snapping.
-  const resolvedWash = useSharedValue(0);
+  const resolvedWash = useSharedValue(isApproved ? 1 : 0);
   useEffect(() => {
     resolvedWash.value = withTiming(isApproved ? 1 : 0, { duration: reduceMotion ? 0 : 600 });
   }, [isApproved, reduceMotion, resolvedWash]);

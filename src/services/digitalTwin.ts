@@ -118,13 +118,49 @@ export function forecastCampaign(draft: CampaignDraft): CampaignForecast {
 
 /**
  * One fix per risk the forecast found, each re-simulated so HR can see what it is worth.
+ * `offset` is the campaign's calibration offset, for forecasts of live campaigns.
  * Mock implementation: replace with the Digital Twin's what-if endpoint.
  */
-export function suggestForecastFixes(draft: CampaignDraft, forecast: CampaignForecast): ForecastFix[] {
+export function suggestForecastFixes(draft: CampaignDraft, forecast: CampaignForecast, offset = 0): ForecastFix[] {
   return forecast.risk.reasons.map((reason) => {
     const patch = fixFor(reason, draft, forecast);
-    return { reason, patch, matchRate: forecastCampaign({ ...draft, ...patch }).matchRate };
+    return { reason, patch, matchRate: forecastCalibrated({ ...draft, ...patch }, offset).matchRate };
   });
+}
+
+/**
+ * Points to add to the model's match rate so a live campaign's current setup forecasts exactly
+ * the match rate it has today. Scenarios for that campaign then shift by the same amount.
+ */
+export function calibrationOffset(setup: CampaignDraft, liveMatchRate: number): number {
+  return liveMatchRate - forecastCampaign(setup).matchRate;
+}
+
+/**
+ * Match-rate points a change to a campaign's setup is forecast to add. A campaign's calibration
+ * offset shifts both forecasts alike, so it cancels out.
+ */
+export function matchRateLift(setup: CampaignDraft, patch: Partial<CampaignDraft>): number {
+  return forecastCampaign({ ...setup, ...patch }).matchRate - forecastCampaign(setup).matchRate;
+}
+
+/** The forecast for a setup, with the match rate shifted by the campaign's calibration offset. */
+export function forecastCalibrated(setup: CampaignDraft, offset: number): CampaignForecast {
+  const forecast = forecastCampaign(setup);
+  return { ...forecast, matchRate: Math.round(clamp(forecast.matchRate + offset, 5, 98)) };
+}
+
+/** Share of the first 30 days' qualified applicants in by the end of each week; sourcing slows after that. */
+const WEEKLY_BUILD_UP = [0.2, 0.45, 0.68, 0.88, 1.03, 1.14];
+
+/** Qualified applicants in the pipeline at the end of each of the first six weeks. */
+export function projectPipeline(forecast: CampaignForecast): number[] {
+  return WEEKLY_BUILD_UP.map((share) => Math.round(forecast.qualifiedApplicants * share));
+}
+
+/** The week the first hire is expected in, counting from launch (1 = the first week). */
+export function hireWeek(forecast: CampaignForecast): number {
+  return Math.max(1, Math.ceil(forecast.timeToHireDays / 7));
 }
 
 function fixFor(reason: ForecastRiskReason, draft: CampaignDraft, forecast: CampaignForecast): Partial<CampaignDraft> {

@@ -12,15 +12,25 @@ type FormFieldProps = {
   error?: string | null;
   /** Extra layout classes for the outer container. */
   className?: string;
+  /** Shown right after the label, e.g. a dot marking a changed value. */
+  labelAccessory?: ReactNode;
   children: ReactNode;
 };
 
 /** A label, its control, and a hint or validation message underneath. */
-export function FormField({ label, hint, error, className = '', children }: FormFieldProps) {
+export function FormField({ label, hint, error, className = '', labelAccessory, children }: FormFieldProps) {
   const { palette } = useAppTheme();
+  const labelText = <Text className="text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</Text>;
   return (
     <View className={`gap-2 ${className}`}>
-      <Text className="text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</Text>
+      {labelAccessory ? (
+        <View className="flex-row items-center gap-2">
+          {labelText}
+          {labelAccessory}
+        </View>
+      ) : (
+        labelText
+      )}
       {children}
       {error ? (
         <Animated.View entering={FadeIn.duration(180)} className="flex-row items-center gap-1.5">

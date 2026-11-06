@@ -44,7 +44,7 @@ const RISK_STYLES: Record<
 };
 
 /** Fill colour for the forecast bar: on target, within 10 points of it, or further off. */
-function barClassFor(matchRate: number, target: number) {
+export function barClassFor(matchRate: number, target: number) {
   if (matchRate >= target) return 'bg-emerald-500 dark:bg-emerald-400';
   if (matchRate >= target - 10) return 'bg-amber-500 dark:bg-amber-400';
   return 'bg-rose-500 dark:bg-rose-400';
@@ -59,7 +59,7 @@ type ForecastPanelProps = {
 
 /** The Hiring Digital Twin's live prediction for the campaign being set up, with one-tap fixes. */
 export function ForecastPanel({ draft, forecast, fixes, onApplyFix }: ForecastPanelProps) {
-  const { t, pick } = useI18n();
+  const { t } = useI18n();
   const { palette } = useAppTheme();
   const risk = RISK_STYLES[forecast.risk.level];
   const gap = forecast.matchRate - draft.targetMatchRate;
@@ -142,28 +142,7 @@ export function ForecastPanel({ draft, forecast, fixes, onApplyFix }: ForecastPa
       </View>
 
       <View className="mt-5">
-        <SectionLabel>{t.forecast.bottlenecks}</SectionLabel>
-        <View className="mt-2.5 gap-2.5">
-          {fixes.length === 0 ? (
-            <Animated.View
-              entering={FadeIn.duration(300)}
-              className="flex-row items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-400/20 dark:bg-emerald-500/10"
-            >
-              <Ionicons name="checkmark-circle" size={18} color={palette.emerald} />
-              <Text className="flex-1 text-sm text-emerald-900 dark:text-emerald-100">{t.forecast.noBottlenecks}</Text>
-            </Animated.View>
-          ) : (
-            fixes.map((fix) => (
-              <FixRow
-                key={fix.reason}
-                reason={describeReason(fix.reason, draft, forecast, t)}
-                fix={describeFix(fix, draft, t, pick)}
-                lift={fix.matchRate - forecast.matchRate}
-                onApply={() => onApplyFix(fix)}
-              />
-            ))
-          )}
-        </View>
+        <PredictedBottlenecks draft={draft} forecast={forecast} fixes={fixes} onApplyFix={onApplyFix} />
       </View>
 
       <View className="mt-5 flex-row items-center gap-1.5 border-t border-slate-100 pt-4 dark:border-white/10">
@@ -195,6 +174,57 @@ export function ForecastStrip({ draft, forecast }: { draft: CampaignDraft; forec
       <View className={`flex-row items-center gap-1 rounded-full px-2 py-0.5 ${risk.chipClassName}`}>
         <Ionicons name={risk.icon} size={12} color={risk.color(palette)} />
         <Text className={`text-[11px] font-semibold ${risk.textClassName}`}>{t.forecast.risk[forecast.risk.level]}</Text>
+      </View>
+    </View>
+  );
+}
+
+type PredictedBottlenecksProps = {
+  draft: CampaignDraft;
+  forecast: CampaignForecast;
+  fixes: ForecastFix[];
+  onApplyFix: (fix: ForecastFix) => void;
+  /** Button text, for where a plain "Apply" could be mistaken for changing the live campaign. */
+  applyLabel?: string;
+  applyA11y?: (fix: string) => string;
+};
+
+/** The risks the Digital Twin predicts for a setup, each with a fix and the match rate it adds. */
+export function PredictedBottlenecks({
+  draft,
+  forecast,
+  fixes,
+  onApplyFix,
+  applyLabel,
+  applyA11y,
+}: PredictedBottlenecksProps) {
+  const { t, pick } = useI18n();
+  const { palette } = useAppTheme();
+  return (
+    <View>
+      <SectionLabel>{t.forecast.bottlenecks}</SectionLabel>
+      <View className="mt-2.5 gap-2.5">
+        {fixes.length === 0 ? (
+          <Animated.View
+            entering={FadeIn.duration(300)}
+            className="flex-row items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-400/20 dark:bg-emerald-500/10"
+          >
+            <Ionicons name="checkmark-circle" size={18} color={palette.emerald} />
+            <Text className="flex-1 text-sm text-emerald-900 dark:text-emerald-100">{t.forecast.noBottlenecks}</Text>
+          </Animated.View>
+        ) : (
+          fixes.map((fix) => (
+            <FixRow
+              key={fix.reason}
+              reason={describeReason(fix.reason, draft, forecast, t)}
+              fix={describeFix(fix, draft, t, pick)}
+              lift={fix.matchRate - forecast.matchRate}
+              applyLabel={applyLabel ?? t.forecast.apply}
+              applyA11y={applyA11y ?? t.forecast.applyA11y}
+              onApply={() => onApplyFix(fix)}
+            />
+          ))
+        )}
       </View>
     </View>
   );
@@ -246,12 +276,16 @@ function FixRow({
   reason,
   fix,
   lift,
+  applyLabel,
+  applyA11y,
   onApply,
 }: {
   reason: string;
   fix: string;
   /** Match-rate points the fix is forecast to add. */
   lift: number;
+  applyLabel: string;
+  applyA11y: (fix: string) => string;
   onApply: () => void;
 }) {
   const { t } = useI18n();
@@ -280,11 +314,11 @@ function FixRow({
           )}
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={t.forecast.applyA11y(fix)}
+            accessibilityLabel={applyA11y(fix)}
             onPress={onApply}
             className="h-8 items-center justify-center rounded-lg bg-indigo-600 px-3 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
           >
-            <Text className="text-xs font-semibold text-white">{t.forecast.apply}</Text>
+            <Text className="text-xs font-semibold text-white">{applyLabel}</Text>
           </PressableScale>
         </View>
       </View>
