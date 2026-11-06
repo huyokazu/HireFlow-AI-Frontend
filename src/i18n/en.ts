@@ -635,6 +635,108 @@ export const en = {
       undo: 'Undo',
     },
   },
+  analyticsPage: {
+    title: 'Analytics',
+    subtitle: (campaigns: number) =>
+      campaigns === 1 ? '1 live campaign · last 6 months' : `${campaigns} live campaigns · last 6 months`,
+    loadError: "Couldn't load the analytics. Please try again later.",
+    stats: {
+      hires: 'Hires, last 6 months',
+      vsPrevious: (change: number) =>
+        change === 0
+          ? 'Same as the 6 months before'
+          : `${change > 0 ? '+' : '−'}${Math.abs(change)} vs the 6 months before`,
+      qualified: 'Qualified applicants',
+      matchRate: (rate: number, target: number) => `${rate}% match rate · target ${target}%`,
+      hoursSaved: 'Hours saved by AI this week',
+    },
+    scope: {
+      label: 'Funnel and channels for',
+      a11y: 'Show the funnel and sourcing channels for',
+      chipA11y: (campaign: string, applicants: number) =>
+        `${campaign}, ${applicants === 1 ? '1 applicant' : `${applicants} applicants`}`,
+    },
+    trend: {
+      title: 'Hiring over time',
+      subtitle: 'Hires and average time to hire, month by month',
+      hires: 'Hires',
+      timeToHire: 'Avg. time to hire, days',
+      hiresUnit: (count: number): string => (count === 1 ? 'hire' : 'hires'),
+      daysUnit: (days: number): string => (days === 1 ? 'day to hire' : 'days to hire'),
+      soFar: 'so far',
+      partialNote: (month: string) => `${month} so far`,
+      summary: (hires: number, months: number, fromDays: number, toDays: number) =>
+        `${hires} hires in the last ${months} months. Average time to hire went from ${fromDays} to ${toDays} days.`,
+      monthA11y: (month: string, hires: number, days: number) =>
+        `${month}: ${hires === 1 ? '1 hire' : `${hires} hires`}, ${days} days average time to hire`,
+    },
+    funnel: {
+      title: 'Hiring funnel',
+      subtitle: 'How far candidates got, counting those who left later',
+      stages: {
+        applied: 'Applied',
+        qualified: 'Passed AI screening',
+        interview: 'Interview',
+        offer: 'Offer',
+        hired: 'Hired',
+      },
+      share: (percent: string) => `${percent} of applicants`,
+      movedOn: (percent: number) => `${percent}% moved on`,
+      waiting: (count: number) =>
+        count === 1 ? '1 offer is waiting for an answer' : `${count} offers are waiting for an answer`,
+      openBoard: 'Open board',
+      summary: (applied: number, hired: number) => `Hiring funnel: ${applied} applicants, ${hired} hired`,
+      stageA11y: (stage: string, count: number, percent: string) => `${stage}: ${count}, ${percent} of applicants`,
+    },
+    channels: {
+      title: 'Sourcing channels',
+      subtitle: 'Applicants per channel, and how many passed AI screening',
+      qualified: 'Qualified',
+      other: 'Other applicants',
+      ofApplicants: (qualified: number, applicants: number) => `${qualified} of ${applicants}`,
+      rate: (percent: number) => `${percent}% qualified`,
+      bestBoth: (channel: string, count: number, percent: number) =>
+        `Most qualified applicants and highest share qualified: ${channel} (${count}, ${percent}%).`,
+      best: (rateChannel: string, percent: number, countChannel: string, count: number) =>
+        `Highest share qualified: ${rateChannel} (${percent}%). Most qualified applicants: ${countChannel} (${count}).`,
+      single: (channel: string, percent: number) =>
+        `Every applicant came from ${channel}, and ${percent}% of them passed AI screening.`,
+      empty: 'No applicants yet. Channels show up here once the Sourcing Agent imports the first CVs.',
+      summary: (channels: number, qualified: number, applicants: number) =>
+        `${channels === 1 ? '1 sourcing channel' : `${channels} sourcing channels`}: ${qualified} of ${applicants} applicants qualified`,
+      channelA11y: (channel: string, qualified: number, applicants: number, percent: number) =>
+        `${channel}: ${qualified} of ${applicants} applicants qualified, ${percent}%`,
+    },
+    targets: {
+      title: 'Campaigns vs target',
+      subtitle: (filled: number, openings: number) =>
+        `Match rate against target · ${filled} of ${openings} openings filled`,
+      below: 'Below target',
+      above: 'Above target',
+      gap: (points: number) => (points === 0 ? 'On target' : `${points > 0 ? '+' : '−'}${Math.abs(points)} pts`),
+      meta: (match: number, target: number, hired: number, openings: number) =>
+        `${match}% match · target ${target}% · ${hired} of ${openings} hired`,
+      noCandidates: 'No candidates yet',
+      openA11y: (campaign: string, health: string, match: number, target: number) =>
+        `${campaign}, ${health}: ${match}% match rate against a ${target}% target. Open its pipeline board`,
+    },
+    agents: {
+      title: "AI agents' impact",
+      subtitle: 'Hours saved, and how often HR agreed',
+      hoursSaved: 'Hours saved per week',
+      weekOf: (date: string) => `Week of ${date}`,
+      soFar: 'so far',
+      hoursUnit: 'h saved',
+      thisWeekSoFar: 'This week so far',
+      agreement: 'HR agreement',
+      agreementHint: 'How often HR kept what each agent decided',
+      openAgents: 'Open AI Agents',
+      summary: (weeks: number, from: number, to: number) =>
+        `Hours saved per week over the last ${weeks} weeks, from ${from} to ${to}`,
+      weekA11y: (week: string, hours: number) => `${week}: ${hours} hours saved`,
+      agreementA11y: (agent: string, percent: number) => `${agent}: HR agreed ${percent}% of the time`,
+    },
+  },
   time: {
     justNow: 'just now',
     minutesAgo: (minutes: number) => `${minutes} min ago`,
@@ -644,6 +746,16 @@ export const en = {
   date: {
     /** "Wednesday, November 4". */
     long: (date: Date) => `${WEEKDAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`,
+    /** "Nov". */
+    monthShort: (date: Date) => MONTHS[date.getMonth()].slice(0, 3),
+    /** "November". */
+    month: (date: Date) => MONTHS[date.getMonth()],
+    /** "November 2026". */
+    monthYear: (date: Date) => `${MONTHS[date.getMonth()]} ${date.getFullYear()}`,
+    /** "Nov 2". */
+    dayMonth: (date: Date) => `${MONTHS[date.getMonth()].slice(0, 3)} ${date.getDate()}`,
+    /** "11/2", month first. */
+    dayMonthNumeric: (date: Date) => `${date.getMonth() + 1}/${date.getDate()}`,
   },
 };
 

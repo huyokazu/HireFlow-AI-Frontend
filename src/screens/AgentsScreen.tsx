@@ -14,8 +14,9 @@ import { useI18n, type Dictionary } from '../i18n';
 import {
   AGENT_KEYS,
   ALL_AGENTS_PAUSED,
-  hoursSavedToday,
+  hoursSavedThisWeek,
   NO_AGENTS_PAUSED,
+  recruiterDays,
   type AgentKey,
   type AgentStatsByKey,
   type PausedAgents,
@@ -31,7 +32,6 @@ const CARD_STAGGER_MS = 60;
 const FEED_DELAY = 520;
 /** How often relative times ("2 min ago") refresh. */
 const CLOCK_TICK_MS = 30_000;
-const HOURS_PER_RECRUITER_DAY = 8;
 
 /** Every pause change can be undone, so the toast keeps the state it replaced. */
 type AgentsToast =
@@ -221,7 +221,7 @@ function buildStats(
     baseline.tasksYesterday > 0
       ? Math.round(((tasksToday - baseline.tasksYesterday) / baseline.tasksYesterday) * 100)
       : 0;
-  const hours = Math.round(baseline.hoursSavedBeforeToday + hoursSavedToday(stats));
+  const hours = hoursSavedThisWeek(stats, baseline.hoursSavedBeforeToday);
   const queued = AGENT_KEYS.reduce((sum, agent) => sum + stats[agent].queued, 0);
   const held = AGENT_KEYS.reduce((sum, agent) => sum + (paused[agent] ? stats[agent].queued : 0), 0);
 
@@ -255,7 +255,7 @@ function buildStats(
       icon: 'time-outline',
       accent: 'violet',
       delta: {
-        text: copy.recruiterDays(Math.max(1, Math.round(hours / HOURS_PER_RECRUITER_DAY))),
+        text: copy.recruiterDays(recruiterDays(hours)),
         tone: 'positive',
         icon: 'people-outline',
       },

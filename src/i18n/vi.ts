@@ -628,6 +628,107 @@ export const vi: Dictionary = {
       undo: 'Hoàn tác',
     },
   },
+  analyticsPage: {
+    title: 'Phân tích',
+    subtitle: (campaigns: number) => `${campaigns} chiến dịch đang chạy · 6 tháng gần nhất`,
+    loadError: 'Không tải được dữ liệu phân tích. Vui lòng thử lại sau.',
+    stats: {
+      hires: 'Đã tuyển trong 6 tháng',
+      vsPrevious: (change: number) =>
+        change === 0
+          ? 'Bằng 6 tháng trước đó'
+          : `${change > 0 ? '+' : '−'}${Math.abs(change)} so với 6 tháng trước đó`,
+      qualified: 'Hồ sơ đạt chuẩn',
+      matchRate: (rate: number, target: number) => `Tỷ lệ phù hợp ${rate}% · mục tiêu ${target}%`,
+      hoursSaved: 'Giờ AI tiết kiệm tuần này',
+    },
+    scope: {
+      label: 'Phễu và kênh tìm ứng viên của',
+      a11y: 'Xem phễu tuyển dụng và kênh tìm ứng viên của',
+      chipA11y: (campaign: string, applicants: number) => `${campaign}, ${applicants} người ứng tuyển`,
+    },
+    trend: {
+      title: 'Tuyển dụng theo thời gian',
+      subtitle: 'Số người được tuyển và thời gian tuyển trung bình theo từng tháng',
+      hires: 'Số người được tuyển',
+      timeToHire: 'Thời gian tuyển TB, ngày',
+      hiresUnit: () => 'người được tuyển',
+      daysUnit: () => 'ngày để tuyển',
+      soFar: 'tính đến nay',
+      partialNote: (month: string) => `${month}: tính đến hôm nay`,
+      summary: (hires: number, months: number, fromDays: number, toDays: number) =>
+        `Tuyển ${hires} người trong ${months} tháng gần nhất. Thời gian tuyển trung bình đi từ ${fromDays} đến ${toDays} ngày.`,
+      monthA11y: (month: string, hires: number, days: number) =>
+        `${month}: tuyển ${hires} người, thời gian tuyển trung bình ${days} ngày`,
+    },
+    funnel: {
+      title: 'Phễu tuyển dụng',
+      subtitle: 'Ứng viên đã đi đến vòng nào, tính cả những người rời đi sau đó',
+      stages: {
+        applied: 'Ứng tuyển',
+        qualified: 'Đạt vòng AI sàng lọc',
+        interview: 'Phỏng vấn',
+        offer: 'Mời nhận việc',
+        hired: 'Đã tuyển',
+      },
+      share: (percent: string) => `${percent} số người ứng tuyển`,
+      movedOn: (percent: number) => `${percent}% đi tiếp`,
+      waiting: (count: number) => `${count} offer đang chờ ứng viên trả lời`,
+      openBoard: 'Mở bảng',
+      summary: (applied: number, hired: number) =>
+        `Phễu tuyển dụng: ${applied} người ứng tuyển, ${hired} người được tuyển`,
+      stageA11y: (stage: string, count: number, percent: string) =>
+        `${stage}: ${count}, ${percent} số người ứng tuyển`,
+    },
+    channels: {
+      title: 'Kênh tìm ứng viên',
+      subtitle: 'Số hồ sơ từ mỗi kênh và số hồ sơ đạt vòng AI sàng lọc',
+      qualified: 'Đạt chuẩn',
+      other: 'Hồ sơ khác',
+      ofApplicants: (qualified: number, applicants: number) => `${qualified}/${applicants}`,
+      rate: (percent: number) => `${percent}% đạt chuẩn`,
+      bestBoth: (channel: string, count: number, percent: number) =>
+        `Nhiều hồ sơ đạt chuẩn nhất và tỷ lệ đạt chuẩn cao nhất: ${channel} (${count}, ${percent}%).`,
+      best: (rateChannel: string, percent: number, countChannel: string, count: number) =>
+        `Tỷ lệ đạt chuẩn cao nhất: ${rateChannel} (${percent}%). Nhiều hồ sơ đạt chuẩn nhất: ${countChannel} (${count}).`,
+      single: (channel: string, percent: number) =>
+        `Toàn bộ hồ sơ đến từ ${channel}, và ${percent}% trong số đó đạt vòng AI sàng lọc.`,
+      empty: 'Chưa có hồ sơ. Các kênh sẽ hiện ở đây khi Agent Tìm nguồn thu thập những CV đầu tiên.',
+      summary: (channels: number, qualified: number, applicants: number) =>
+        `${channels} kênh tìm ứng viên: ${qualified}/${applicants} hồ sơ đạt chuẩn`,
+      channelA11y: (channel: string, qualified: number, applicants: number, percent: number) =>
+        `${channel}: ${qualified}/${applicants} hồ sơ đạt chuẩn, ${percent}%`,
+    },
+    targets: {
+      title: 'Chiến dịch so với mục tiêu',
+      subtitle: (filled: number, openings: number) =>
+        `Tỷ lệ phù hợp so với mục tiêu · đã tuyển ${filled}/${openings} vị trí`,
+      below: 'Dưới mục tiêu',
+      above: 'Trên mục tiêu',
+      gap: (points: number) => (points === 0 ? 'Đạt mục tiêu' : `${points > 0 ? '+' : '−'}${Math.abs(points)} điểm`),
+      meta: (match: number, target: number, hired: number, openings: number) =>
+        `Phù hợp ${match}% · mục tiêu ${target}% · đã tuyển ${hired}/${openings}`,
+      noCandidates: 'Chưa có ứng viên',
+      openA11y: (campaign: string, health: string, match: number, target: number) =>
+        `${campaign}, ${health}: tỷ lệ phù hợp ${match}% so với mục tiêu ${target}%. Mở bảng quy trình`,
+    },
+    agents: {
+      title: 'Hiệu quả của AI Agent',
+      subtitle: 'Giờ tiết kiệm và mức độ HR đồng ý',
+      hoursSaved: 'Giờ tiết kiệm mỗi tuần',
+      weekOf: (date: string) => `Tuần từ ${date}`,
+      soFar: 'tính đến nay',
+      hoursUnit: 'giờ tiết kiệm',
+      thisWeekSoFar: 'Tuần này: tính đến hôm nay',
+      agreement: 'HR đồng ý',
+      agreementHint: 'Tần suất HR giữ nguyên quyết định của từng agent',
+      openAgents: 'Mở AI Agent',
+      summary: (weeks: number, from: number, to: number) =>
+        `Giờ tiết kiệm mỗi tuần trong ${weeks} tuần gần nhất, từ ${from} đến ${to}`,
+      weekA11y: (week: string, hours: number) => `${week}: tiết kiệm ${hours} giờ`,
+      agreementA11y: (agent: string, percent: number) => `${agent}: HR đồng ý ${percent}% số lần`,
+    },
+  },
   time: {
     justNow: 'vừa xong',
     minutesAgo: (minutes: number) => `${minutes} phút trước`,
@@ -637,5 +738,15 @@ export const vi: Dictionary = {
   date: {
     /** "Thứ Tư, 4 tháng 11". */
     long: (date: Date) => `${WEEKDAYS[date.getDay()]}, ${date.getDate()} tháng ${date.getMonth() + 1}`,
+    /** "T11". */
+    monthShort: (date: Date) => `T${date.getMonth() + 1}`,
+    /** "Tháng 11". */
+    month: (date: Date) => `Tháng ${date.getMonth() + 1}`,
+    /** "Tháng 11/2026". */
+    monthYear: (date: Date) => `Tháng ${date.getMonth() + 1}/${date.getFullYear()}`,
+    /** "2/11". */
+    dayMonth: (date: Date) => `${date.getDate()}/${date.getMonth() + 1}`,
+    /** "2/11", day first. */
+    dayMonthNumeric: (date: Date) => `${date.getDate()}/${date.getMonth() + 1}`,
   },
 };

@@ -12,6 +12,7 @@ import Animated, {
 
 import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
+import { formatTick, niceStep } from '../../utils/charts';
 
 const PLOT_HEIGHT = 136;
 /** Column width: thin marks, well under the 24px cap, with a 2px gap between the pair. */
@@ -212,18 +213,4 @@ function HireFlag({ series }: { series: Series }) {
   const { isDark } = useAppTheme();
   const color = isDark ? SERIES[series].flagColor.dark : SERIES[series].flagColor.light;
   return <Ionicons name="flag" size={12} color={color} />;
-}
-
-/** The smallest round whole number at or above `raw`, for evenly spaced axis ticks. */
-function niceStep(raw: number) {
-  const magnitude = 10 ** Math.floor(Math.log10(raw));
-  for (const factor of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) {
-    const step = factor * magnitude;
-    if (step >= raw && Number.isInteger(step)) return step;
-  }
-  return 10 * magnitude;
-}
-
-function formatTick(value: number) {
-  return value >= 10000 ? `${Math.round(value / 1000)}K` : String(value);
 }
