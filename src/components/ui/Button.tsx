@@ -69,6 +69,7 @@ export function Button({
       aria-busy={loading}
       disabled={disabled || loading}
       onPress={onPress}
+      glowColor={variant === 'primary' && !disabled ? 'rgba(79, 70, 229, 0.75)' : undefined}
       className={`h-11 flex-row items-center justify-center gap-1.5 rounded-xl px-4 ${classes.container} ${
         disabled ? 'opacity-50' : ''
       } ${className}`}

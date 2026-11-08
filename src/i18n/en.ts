@@ -61,6 +61,11 @@ export const en = {
     agentsPaused: 'All AI agents paused',
     resumeInAgents: 'Resume them in AI Agents',
     closeMenu: 'Close menu',
+    more: 'More',
+    moreA11y: 'More pages: AI Agents, Digital Twin, Analytics, Settings',
+    expand: 'Expand the menu',
+    collapse: 'Collapse the menu',
+    tabsLabel: 'Main pages',
   },
   dashboard: {
     title: 'Recruitment overview',
@@ -72,6 +77,12 @@ export const en = {
     placeholderSubtitle: 'This workspace is next on the roadmap.',
     placeholderBody: 'Not built yet. Head back to the Dashboard for the live overview.',
     moreAlerts: (count: number) => (count === 1 ? 'View 1 more alert' : `View ${count} more alerts`),
+    openAgents: 'Open AI Agents',
+    agentsList: 'What each agent is doing',
+    twinTitle: 'Hiring Digital Twin',
+    twinSubtitle: (campaign: string) => `${campaign} · forecast for today's setup`,
+    openTwin: 'Open Digital Twin',
+    twinBuildUpA11y: (weeks: string) => `Qualified applicants at the end of each week: ${weeks}.`,
   },
   stats: {
     activeCampaigns: 'Active campaigns',
@@ -127,6 +138,7 @@ export const en = {
     shortlistA11y: (name: string) => `Shortlist ${name}`,
     stampSkip: 'Skip',
     stampShortlist: 'Shortlist',
+    shortlisted: 'Shortlisted',
     shortlistedCount: (count: number) => `${count} shortlisted`,
     hint: 'Swipe left to skip, right to shortlist',
     onlyMatch: 'Only match',
@@ -209,6 +221,7 @@ export const en = {
     approve: (action: string) => `Approve: ${action}`,
     approveFallback: 'Approve AI fix',
     applying: 'Applying fix…',
+    applied: 'Fix applied',
     approvedTitle: (action: string) => `Fix approved: ${action}`,
     approvedBody: (lift: number) =>
       `The Orchestrator Agent is applying the change and will re-run matching. Forecast: +${lift}% match rate.`,
@@ -498,6 +511,7 @@ export const en = {
     tryFixA11y: (fix: string) => `Add to scenario: ${fix}`,
     apply: 'Apply to campaign',
     applying: 'Applying…',
+    appliedShort: 'Applied',
     reverting: 'Undoing…',
     applied: (campaign: string) =>
       `Scenario applied to ${campaign}. The Orchestrator is updating its job posts and agents.`,

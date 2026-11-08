@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, type ComponentProps } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../../theme';
+import { useShell } from '../layout/AppShell';
 import { PressableScale } from './PressableScale';
 
 type ToastProps = {
@@ -29,7 +29,8 @@ export function Toast({
   // Long enough to read the message and still reach Undo.
   durationMs = 7000,
 }: ToastProps) {
-  const insets = useSafeAreaInsets();
+  // Above the phone's floating tab bar.
+  const { overlayBottom } = useShell();
   const { isDark } = useAppTheme();
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export function Toast({
     // centre of the page, where the main action usually is (e.g. the wizard's Continue).
     <View
       className="right-4 items-center md:right-8 md:items-end"
-      style={[styles.host, { bottom: insets.bottom + 20 }]}
+      style={[styles.host, { bottom: overlayBottom }]}
     >
       {toastKey !== null && (
         <Animated.View

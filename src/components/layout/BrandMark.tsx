@@ -8,9 +8,11 @@ type BrandMarkProps = {
   showTagline?: boolean;
   /** Hides the wordmark on phone widths so the header controls fit; the logo stays. */
   collapseNameOnPhones?: boolean;
+  /** Just the logo, e.g. on the tablet's icon rail. */
+  markOnly?: boolean;
 };
 
-export function BrandMark({ showTagline = true, collapseNameOnPhones = false }: BrandMarkProps) {
+export function BrandMark({ showTagline = true, collapseNameOnPhones = false, markOnly = false }: BrandMarkProps) {
   const { t } = useI18n();
   return (
     <View className="flex-row items-center gap-2.5">
@@ -26,17 +28,19 @@ export function BrandMark({ showTagline = true, collapseNameOnPhones = false }: 
         />
         <Ionicons name="sparkles" size={18} color="#FFFFFF" />
       </View>
-      <View className={collapseNameOnPhones ? 'hidden sm:flex' : undefined}>
-        <View className="flex-row items-center gap-1.5">
-          <Text className="text-base font-bold text-slate-900 dark:text-white">HireFlow AI</Text>
-          <View className="rounded-md bg-indigo-50 px-1.5 py-0.5 dark:bg-indigo-500/20">
-            <Text className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300">2.0</Text>
+      {!markOnly && (
+        <View className={collapseNameOnPhones ? 'hidden sm:flex' : undefined}>
+          <View className="flex-row items-center gap-1.5">
+            <Text className="text-base font-bold text-slate-900 dark:text-white">HireFlow AI</Text>
+            <View className="rounded-md bg-indigo-50 px-1.5 py-0.5 dark:bg-indigo-500/20">
+              <Text className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300">2.0</Text>
+            </View>
           </View>
+          {showTagline && (
+            <Text className="text-xs text-slate-500 dark:text-slate-400">{t.brand.tagline}</Text>
+          )}
         </View>
-        {showTagline && (
-          <Text className="text-xs text-slate-500 dark:text-slate-400">{t.brand.tagline}</Text>
-        )}
-      </View>
+      )}
     </View>
   );
 }

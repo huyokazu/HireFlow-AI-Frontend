@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { useAppTheme } from '../../theme';
-import { useFluidSpan } from '../ui/motion';
+import { useFluidSpan, useMicroBounce } from '../ui/motion';
+import { PressableScale } from '../ui/PressableScale';
 
 const TRACK_PADDING = 4;
 
@@ -47,28 +48,39 @@ export function SegmentedControl<T extends string>({
           style={[styles.indicator, { boxShadow: palette.shadow.stat }, indicatorStyle]}
         />
       )}
-      {options.map((option) => {
-        const selected = option === value;
-        return (
-          <Pressable
-            key={option}
-            accessibilityRole="radio"
-            aria-checked={selected}
-            onPress={() => onChange(option)}
-            className="h-9 flex-1 items-center justify-center px-2"
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                selected ? 'text-indigo-700 dark:text-white' : 'text-slate-600 dark:text-slate-300'
-              }`}
-              numberOfLines={1}
-            >
-              {labelFor(option)}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {options.map((option) => (
+        <Segment
+          key={option}
+          label={labelFor(option)}
+          selected={option === value}
+          onPress={() => onChange(option)}
+        />
+      ))}
     </View>
+  );
+}
+
+function Segment({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const bounce = useMicroBounce(selected);
+  return (
+    <PressableScale
+      accessibilityRole="radio"
+      aria-checked={selected}
+      onPress={onPress}
+      pressedScale={0.92}
+      hoverScale={1.03}
+      className="h-9 flex-1 items-center justify-center px-2"
+    >
+      <Animated.Text
+        className={`text-sm font-semibold ${
+          selected ? 'text-indigo-700 dark:text-white' : 'text-slate-600 dark:text-slate-300'
+        }`}
+        style={bounce}
+        numberOfLines={1}
+      >
+        {label}
+      </Animated.Text>
+    </PressableScale>
   );
 }
 
