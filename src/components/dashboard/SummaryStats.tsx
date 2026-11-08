@@ -56,28 +56,35 @@ type SummaryStatsProps = {
   stats: SummaryStat[];
   /** Entrance delay of the first card; the rest follow one after another. */
   enterDelay?: number;
+  /** Cards per row (2 for a 2×2 grid, 4 for one row). Without it they wrap as space allows. */
+  columns?: 2 | 4;
 };
 
 /** Headline numbers; wraps to two columns on phones and one row on wide screens. */
-export function SummaryStats({ stats, enterDelay = 0 }: SummaryStatsProps) {
+export function SummaryStats({ stats, enterDelay = 0, columns }: SummaryStatsProps) {
   return (
     <View className="flex-row flex-wrap gap-3">
       {stats.map((stat, index) => (
-        <StatCard key={stat.key} stat={stat} enterDelay={staggerDelay(index, enterDelay)} />
+        <StatCard key={stat.key} stat={stat} enterDelay={staggerDelay(index, enterDelay)} columns={columns} />
       ))}
     </View>
   );
 }
 
-function StatCard({ stat, enterDelay }: { stat: SummaryStat; enterDelay: number }) {
+// A basis a little under 1/n of the row, so n cards (and the gaps between them) fit and grow to fill it.
+const COLUMN_BASIS = { 2: '40%', 4: '20%' } as const;
+
+function StatCard({ stat, enterDelay, columns }: { stat: SummaryStat; enterDelay: number; columns?: 2 | 4 }) {
   const { palette } = useAppTheme();
   const delta = DELTA_TONES[stat.delta.tone];
 
   return (
     <Animated.View
       entering={FadeInDown.delay(enterDelay).duration(500)}
-      className="min-w-[150px] flex-1 rounded-2xl border border-white/80 bg-white/70 p-4 dark:border-white/15 dark:bg-gray-900"
-      style={{ boxShadow: palette.shadow.stat }}
+      className={`flex-1 rounded-2xl border border-white/80 bg-white/70 p-4 dark:border-white/15 dark:bg-gray-900 ${
+        columns ? '' : 'min-w-[150px]'
+      }`}
+      style={[{ boxShadow: palette.shadow.stat }, columns ? { flexBasis: COLUMN_BASIS[columns] } : null]}
     >
       <View className="flex-row items-start justify-between gap-2">
         <Text className="flex-1 text-sm font-medium text-slate-500 dark:text-slate-400" numberOfLines={3}>

@@ -58,6 +58,11 @@ export const vi: Dictionary = {
     agentsPaused: 'Mọi AI Agent đang tạm dừng',
     resumeInAgents: 'Cho chạy tiếp trong mục AI Agent',
     closeMenu: 'Đóng menu',
+    more: 'Thêm',
+    moreA11y: 'Các trang khác: AI Agent, Digital Twin, Phân tích, Cài đặt',
+    expand: 'Mở rộng menu',
+    collapse: 'Thu gọn menu',
+    tabsLabel: 'Các trang chính',
   },
   dashboard: {
     title: 'Tổng quan tuyển dụng',
@@ -69,6 +74,12 @@ export const vi: Dictionary = {
     placeholderSubtitle: 'Khu vực này nằm trong lộ trình phát triển tiếp theo.',
     placeholderBody: 'Tính năng chưa sẵn sàng. Quay lại Tổng quan để xem số liệu trực tiếp.',
     moreAlerts: (count: number) => `Xem thêm ${count} cảnh báo`,
+    openAgents: 'Mở AI Agent',
+    agentsList: 'Từng agent đang làm gì',
+    twinTitle: 'Digital Twin tuyển dụng',
+    twinSubtitle: (campaign: string) => `${campaign} · dự báo theo thiết lập hiện tại`,
+    openTwin: 'Mở Digital Twin',
+    twinBuildUpA11y: (weeks: string) => `Ứng viên đạt yêu cầu vào cuối mỗi tuần: ${weeks}.`,
   },
   stats: {
     activeCampaigns: 'Chiến dịch đang chạy',
@@ -125,6 +136,7 @@ export const vi: Dictionary = {
     shortlistA11y: (name: string) => `Chọn hồ sơ ${name}`,
     stampSkip: 'Bỏ qua',
     stampShortlist: 'Chọn',
+    shortlisted: 'Đã chọn',
     shortlistedCount: (count: number) => `Đã chọn ${count}`,
     hint: 'Vuốt trái để bỏ qua, vuốt phải để chọn',
     onlyMatch: 'Ứng viên duy nhất',
@@ -205,6 +217,7 @@ export const vi: Dictionary = {
     approve: (action: string) => `Phê duyệt: ${action}`,
     approveFallback: 'Phê duyệt phương án',
     applying: 'Đang áp dụng…',
+    applied: 'Đã áp dụng',
     approvedTitle: (action: string) => `Đã phê duyệt: ${action}`,
     approvedBody: (lift: number) =>
       `Agent Điều phối đang áp dụng thay đổi và sẽ chạy lại quá trình so khớp. Dự báo: +${lift}% tỷ lệ phù hợp.`,
@@ -496,6 +509,7 @@ export const vi: Dictionary = {
     tryFixA11y: (fix: string) => `Thêm vào kịch bản: ${fix}`,
     apply: 'Áp dụng cho chiến dịch',
     applying: 'Đang áp dụng…',
+    appliedShort: 'Đã áp dụng',
     reverting: 'Đang hoàn tác…',
     applied: (campaign: string) =>
       `Đã áp dụng kịch bản cho ${campaign}. Agent Điều phối đang cập nhật tin tuyển dụng và các Agent.`,

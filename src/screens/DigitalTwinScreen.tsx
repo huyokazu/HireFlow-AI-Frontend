@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -18,6 +18,9 @@ import type { CampaignSummary } from '../services/dashboard';
 import { forecastCalibrated, suggestForecastFixes } from '../services/digitalTwin';
 import { FEATURED_CAMPAIGN_ID, useWorkspace } from '../state/WorkspaceProvider';
 import { useAppTheme } from '../theme';
+
+/** How long the apply button shows "Applied". */
+const APPLIED_FLASH_MS = 1400;
 
 type TwinToast =
   | { key: number; kind: 'applied'; campaignId: string; title: Localized; previous: CampaignDraft }
@@ -38,6 +41,14 @@ export function DigitalTwinScreen() {
   const [pending, setPending] = useState<PendingChange>(null);
   const [applyFailed, setApplyFailed] = useState(false);
   const [toast, setToast] = useState<TwinToast | null>(null);
+  // When the scenario was last applied, so the button can say "Applied" for a moment.
+  const [appliedAt, setAppliedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (appliedAt === null) return undefined;
+    const timer = setTimeout(() => setAppliedAt(null), APPLIED_FLASH_MS);
+    return () => clearTimeout(timer);
+  }, [appliedAt]);
 
   const campaigns = (summary?.campaigns ?? []).filter((campaign) => campaignSetups[campaign.id]);
   const campaign =
@@ -78,6 +89,7 @@ export function DigitalTwinScreen() {
       await applyCampaignSetup(target.id, next);
       // The scenario is now the campaign's setup, so there is nothing left to compare.
       resetScenario(target.id);
+      setAppliedAt(Date.now());
       setToast({ key: Date.now(), kind: 'applied', campaignId: target.id, title: target.title, previous });
     } catch {
       setApplyFailed(true);
@@ -155,6 +167,7 @@ export function DigitalTwinScreen() {
                   canApply={model.canApply}
                   pending={pending}
                   applyFailed={applyFailed}
+                  justApplied={appliedAt !== null}
                   onApply={() => {
                     if (model.canApply && !pending) void handleApply(campaign, setup, model.scenario);
                   }}

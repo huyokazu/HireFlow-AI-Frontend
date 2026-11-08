@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -23,6 +23,7 @@ import type {
 } from '../../services/selfHealing';
 import { useAppTheme } from '../../theme';
 import { formatRelativeTime } from '../../utils/formatters';
+import { ActionButton } from '../ui/ActionButton';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
 import { SPRINGS, staggerDelay } from '../ui/motion';
 import { PressableScale } from '../ui/PressableScale';
@@ -31,7 +32,11 @@ import { PulseGlow, PulseRing, SuccessPulse } from '../ui/pulse';
 import { SectionLabel } from '../ui/SectionLabel';
 import { TargetProgressBar } from '../ui/TargetProgressBar';
 
-type ApprovalStatus = 'idle' | 'approving' | 'approved' | 'error';
+/** `applied`: the fix went through and the button says so, just before the card morphs to `approved`. */
+type ApprovalStatus = 'idle' | 'approving' | 'applied' | 'approved' | 'error';
+
+/** How long the button shows "Fix applied" before the card turns into its approved summary. */
+const APPLIED_HOLD_MS = 1100;
 
 type ToneKey = AlertSeverity | 'resolved';
 
@@ -154,6 +159,9 @@ export function SelfHealingAlertCard({
   const selectedFix = alert.suggestedFixes.find((fix) => fix.id === selectedFixId);
   const isApproved = status === 'approved';
   const isApproving = status === 'approving';
+  // Locked from the press until the card has morphed.
+  const isBusy = isApproving || status === 'applied';
+  const appliedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLive = !isApproved;
   const severityTone = TONES[alert.severity];
   const toneKey: ToneKey = isApproved ? 'resolved' : alert.severity;
@@ -173,12 +181,21 @@ export function SelfHealingAlertCard({
   }, [isApproved, reduceMotion, resolvedWash]);
   const resolvedWashStyle = useAnimatedStyle(() => ({ opacity: resolvedWash.value }));
 
+  useEffect(
+    () => () => {
+      if (appliedTimer.current) clearTimeout(appliedTimer.current);
+    },
+    [],
+  );
+
   const handleApprove = async () => {
-    if (!selectedFix || isApproving) return;
+    if (!selectedFix || isBusy) return;
     setStatus('approving');
     try {
       await onApproveFix(alert, selectedFix);
-      setStatus('approved');
+      // The button celebrates first ("Fix applied", checkmark, ripple), then the card morphs.
+      setStatus('applied');
+      appliedTimer.current = setTimeout(() => setStatus('approved'), APPLIED_HOLD_MS);
     } catch {
       setStatus('error');
     }
@@ -376,7 +393,7 @@ export function SelfHealingAlertCard({
                     key={fix.id}
                     fix={fix}
                     selected={fix.id === selectedFixId}
-                    disabled={isApproving}
+                    disabled={isBusy}
                     onSelect={() => setSelectedFixId(fix.id)}
                   />
                 ))}
@@ -392,45 +409,30 @@ export function SelfHealingAlertCard({
             </View>
 
             <Footer>
-              {dismiss && (
-                <PressableScale
-                  accessibilityRole="button"
-                  onPress={dismiss}
-                  disabled={isApproving}
-                  className="h-11 items-center justify-center rounded-xl px-4 hover:bg-slate-200/60 active:bg-slate-200/60 dark:hover:bg-white/10 dark:active:bg-white/10"
-                >
-                  <Text className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                    {t.alert.notNow}
-                  </Text>
-                </PressableScale>
+              {/* "Not now" steps aside while the fix applies, so the approve button grows into its place. */}
+              {dismiss && !isBusy && (
+                <Animated.View exiting={reduceMotion ? undefined : FadeOut.duration(140)}>
+                  <PressableScale
+                    accessibilityRole="button"
+                    onPress={dismiss}
+                    className="h-12 items-center justify-center rounded-xl px-4 hover:bg-slate-200/60 active:bg-slate-200/60 dark:hover:bg-white/10 dark:active:bg-white/10"
+                  >
+                    <Text className="text-sm font-semibold text-slate-600 dark:text-slate-300">{t.alert.notNow}</Text>
+                  </PressableScale>
+                </Animated.View>
               )}
-              <PressableScale
-                accessibilityRole="button"
-                aria-busy={isApproving}
+              <ActionButton
+                className="flex-1"
+                state={isApproving ? 'loading' : status === 'applied' ? 'success' : 'idle'}
+                icon="checkmark"
+                // Wraps rather than truncates on narrow screens: the fix name is the point.
+                numberOfLines={2}
+                label={selectedFix ? t.alert.approve(pick(selectedFix.actionLabel)) : t.alert.approveFallback}
+                loadingLabel={t.alert.applying}
+                successLabel={t.alert.applied}
+                disabled={!selectedFix}
                 onPress={handleApprove}
-                disabled={!selectedFix || isApproving}
-                className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 hover:bg-indigo-700 active:bg-indigo-700 disabled:opacity-70 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-                style={{ boxShadow: '0px 8px 20px -8px rgba(79, 70, 229, 0.65)' }}
-              >
-                {isApproving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                )}
-                {/* Wraps rather than truncates on narrow screens: the fix name is the point. */}
-                <Animated.Text
-                  key={isApproving ? 'approving' : 'idle'}
-                  entering={reduceMotion ? undefined : FadeIn.duration(180)}
-                  className="shrink text-center text-sm font-semibold text-white"
-                  numberOfLines={2}
-                >
-                  {isApproving
-                    ? t.alert.applying
-                    : selectedFix
-                      ? t.alert.approve(pick(selectedFix.actionLabel))
-                      : t.alert.approveFallback}
-                </Animated.Text>
-              </PressableScale>
+              />
             </Footer>
           </Animated.View>
         )}
@@ -455,11 +457,12 @@ function FixOption({
   const { t, pick } = useI18n();
   const { palette } = useAppTheme();
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="radio"
       aria-checked={selected}
       disabled={disabled}
       onPress={onSelect}
+      hoverScale={1.01}
       className={`flex-row gap-3 rounded-2xl border p-3.5 disabled:opacity-60 ${
         selected
           ? 'border-indigo-300 bg-indigo-50/60 dark:border-indigo-400/50 dark:bg-indigo-500/10'
@@ -502,7 +505,7 @@ function FixOption({
           <Text className="text-xs text-slate-400 dark:text-slate-500">· {t.alert.forecastSource}</Text>
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

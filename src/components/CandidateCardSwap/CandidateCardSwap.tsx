@@ -1,15 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { useI18n } from '../../i18n';
 import type { Candidate } from '../../services/candidates';
 import { useAppTheme } from '../../theme';
+import { ActionButton } from '../ui/ActionButton';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { Burst } from '../ui/Burst';
 import { PressableScale } from '../ui/PressableScale';
 import { CandidateCard } from './CandidateCard';
 import { DECK_DEPTH, DECK_SLOTS, SwapCard, type ExitVector, type SwapDirection, type SwapEvent } from './SwapCard';
+
+/** How long the Shortlist button says "Shortlisted" after each shortlist. */
+const SHORTLIST_FLASH_MS = 750;
+const SHORTLIST_PARTICLES = ['#10B981', '#6366F1', '#34D399', '#A78BFA'] as const;
 
 type CandidateCardSwapProps = {
   candidates: Candidate[];
@@ -42,6 +48,17 @@ export function CandidateCardSwap({
   const [frontIndex, setFrontIndex] = useState(0);
   const [lastSwap, setLastSwap] = useState<SwapEvent>({ direction: 'next' });
   const [shortlistedIds, setShortlistedIds] = useState<string[]>(initialShortlistedIds ?? []);
+  // Each skip or shortlist (by button or by swipe) fires a burst on its button as the card flies off.
+  const [skipBursts, setSkipBursts] = useState(0);
+  const [shortlistBursts, setShortlistBursts] = useState(0);
+  // When the last shortlist happened, so the button can flash "Shortlisted" for a moment.
+  const [shortlistedAt, setShortlistedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (shortlistedAt === null) return undefined;
+    const timer = setTimeout(() => setShortlistedAt(null), SHORTLIST_FLASH_MS);
+    return () => clearTimeout(timer);
+  }, [shortlistedAt]);
 
   const total = candidates.length;
   const activeIndex = total > 0 ? frontIndex % total : 0;
@@ -64,6 +81,7 @@ export function CandidateCardSwap({
   const skip = useCallback(
     (exit?: ExitVector) => {
       if (current) onSkip?.(current);
+      setSkipBursts((count) => count + 1);
       swapTo('next', exit ?? { x: -1 });
     },
     [current, onSkip, swapTo],
@@ -75,6 +93,8 @@ export function CandidateCardSwap({
         setShortlistedIds((ids) => (ids.includes(current.id) ? ids : [...ids, current.id]));
         onShortlist?.(current);
       }
+      setShortlistBursts((count) => count + 1);
+      setShortlistedAt(Date.now());
       swapTo('next', exit ?? { x: 1 });
     },
     [current, onShortlist, swapTo],
@@ -167,38 +187,52 @@ export function CandidateCardSwap({
               )}
             </View>
 
+            {/* Thumb-sized (48 px) controls; Shortlist gets the most room. */}
             <View className="flex-row items-center gap-2">
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={t.deck.previous}
                 disabled={!canSwap}
                 onPress={() => swapTo('prev')}
-                className="h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white active:bg-slate-100 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:active:bg-white/10"
+                className="h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white active:bg-slate-100 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:active:bg-white/10"
               >
                 <Ionicons name="arrow-undo" size={18} color={palette.icon.strong} />
               </PressableScale>
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={current ? t.deck.skipA11y(current.name) : t.deck.skip}
-                disabled={!canSwap}
-                onPress={() => skip()}
-                className="h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 hover:bg-rose-50 active:bg-rose-50 disabled:opacity-40 dark:border-rose-400/30 dark:bg-rose-500/10 dark:hover:bg-rose-500/20"
-              >
-                <Ionicons name="close" size={18} color={palette.rose} />
-                <Text className="text-sm font-semibold text-rose-600 dark:text-rose-300">{t.deck.skip}</Text>
-              </PressableScale>
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={current ? t.deck.shortlistA11y(current.name) : t.deck.shortlist}
-                onPress={() => shortlist()}
-                className="h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 hover:bg-emerald-700 active:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-                style={{ boxShadow: '0px 8px 20px -8px rgba(16, 185, 129, 0.7)' }}
-              >
-                <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                <Text className="text-sm font-semibold text-white" numberOfLines={1}>
-                  {t.deck.shortlist}
-                </Text>
-              </PressableScale>
+              <View className="flex-1">
+                <PressableScale
+                  accessibilityRole="button"
+                  accessibilityLabel={current ? t.deck.skipA11y(current.name) : t.deck.skip}
+                  disabled={!canSwap}
+                  onPress={() => skip()}
+                  glowColor="rgba(244, 63, 94, 0.45)"
+                  className="h-12 flex-row items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 hover:bg-rose-50 active:bg-rose-50 disabled:opacity-40 dark:border-rose-400/30 dark:bg-rose-500/10 dark:hover:bg-rose-500/20"
+                >
+                  <Ionicons name="close" size={18} color={palette.rose} />
+                  <Text className="text-sm font-semibold text-rose-600 dark:text-rose-300" numberOfLines={1}>
+                    {t.deck.skip}
+                  </Text>
+                </PressableScale>
+                <Burst trigger={skipBursts} color={palette.rose} />
+              </View>
+              <View style={{ flex: 1.4 }}>
+                <ActionButton
+                  tone="emerald"
+                  compact
+                  icon="checkmark"
+                  state={shortlistedAt !== null ? 'success' : 'idle'}
+                  label={t.deck.shortlist}
+                  loadingLabel={t.deck.shortlist}
+                  successLabel={t.deck.shortlisted}
+                  accessibilityLabel={current ? t.deck.shortlistA11y(current.name) : t.deck.shortlist}
+                  onPress={() => shortlist()}
+                />
+                <Burst
+                  trigger={shortlistBursts}
+                  color={palette.emerald}
+                  particleColors={SHORTLIST_PARTICLES}
+                  particleCount={10}
+                />
+              </View>
             </View>
           </View>
         </>

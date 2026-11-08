@@ -1,7 +1,6 @@
 import type { ComponentRef, ReactNode, Ref } from 'react';
 import { StyleSheet, View, type ScrollView as RNScrollView } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useShell } from './AppShell';
 
@@ -17,17 +16,17 @@ type ScreenContainerProps = {
 
 /** Scrolling page body with the app's standard padding and a centred max-width column. */
 export function ScreenContainer({ wide = false, scrollRef, children }: ScreenContainerProps) {
-  const insets = useSafeAreaInsets();
-  const { isWide } = useShell();
+  const { pagePadding } = useShell();
   return (
     <ScrollView
       ref={scrollRef}
       style={styles.flex}
       keyboardShouldPersistTaps="handled"
+      // Phones leave room for the sticky top bar and the floating tab bar.
       contentContainerStyle={{
-        paddingTop: insets.top + 24,
-        paddingBottom: insets.bottom + 48,
-        paddingHorizontal: isWide ? 32 : 16,
+        paddingTop: pagePadding.top,
+        paddingBottom: pagePadding.bottom,
+        paddingHorizontal: pagePadding.horizontal,
       }}
     >
       <View className={`w-full self-center ${wide ? 'max-w-[1680px]' : 'max-w-[1280px]'}`}>{children}</View>

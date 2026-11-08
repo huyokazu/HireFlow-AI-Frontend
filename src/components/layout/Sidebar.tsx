@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, type ComponentProps } from 'react';
-import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
+import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,7 +8,8 @@ import { useI18n, type Dictionary } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { getInitials } from '../../utils/formatters';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
-import { useFluidSpan } from '../ui/motion';
+import { useFluidSpan, useMicroBounce } from '../ui/motion';
+import { PressableScale } from '../ui/PressableScale';
 import { RadarPulse } from '../ui/pulse';
 import { BrandMark } from './BrandMark';
 
@@ -24,11 +25,11 @@ export type NavKey =
   | 'analytics'
   | 'settings';
 
-type NavItem = { key: NavKey; icon: IconName; activeIcon: IconName };
+export type NavItem = { key: NavKey; icon: IconName; activeIcon: IconName };
 
-type NavSection = { key: keyof Dictionary['nav']['sections']; items: NavItem[] };
+export type NavSection = { key: keyof Dictionary['nav']['sections']; items: NavItem[] };
 
-const NAV_SECTIONS: NavSection[] = [
+export const NAV_SECTIONS: NavSection[] = [
   {
     key: 'workspace',
     items: [
@@ -48,7 +49,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const SETTINGS_ITEM: NavItem = { key: 'settings', icon: 'settings-outline', activeIcon: 'settings' };
+export const SETTINGS_ITEM: NavItem = { key: 'settings', icon: 'settings-outline', activeIcon: 'settings' };
 
 export function getNavLabel(key: NavKey, t: Dictionary): string {
   return t.nav.items[key];
@@ -68,12 +69,14 @@ type SidebarProps = {
   badges?: Partial<Record<NavKey, NavBadge>>;
   agentsOnline: number;
   user: { name: string; title: string };
+  /** Shows a button that folds the sidebar back into the tablet's icon rail. */
+  onCollapse?: () => void;
 };
 
 /** Vertical position of a row (or a section) inside its parent. */
 type Frame = { y: number; height: number };
 
-export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user }: SidebarProps) {
+export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user, onCollapse }: SidebarProps) {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const { palette } = useAppTheme();
@@ -96,8 +99,18 @@ export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user
       className="flex-1 border-r border-slate-200/70 bg-white/80 dark:border-white/10 dark:bg-gray-900/80"
       style={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 16 }}
     >
-      <View className="px-5">
+      <View className="flex-row items-center justify-between gap-2 pl-5 pr-3">
         <BrandMark />
+        {onCollapse && (
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={t.nav.collapse}
+            onPress={onCollapse}
+            className="h-9 w-9 items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-100 dark:hover:bg-white/5 dark:active:bg-white/5"
+          >
+            <Ionicons name="chevron-back" size={18} color={palette.icon.muted} />
+          </PressableScale>
+        )}
       </View>
 
       <ScrollView className="mt-4 flex-1" contentContainerClassName="px-3 pb-4">
@@ -231,18 +244,20 @@ function NavRow({
   onLayout?: (event: LayoutChangeEvent) => void;
 }) {
   const { isDark, palette } = useAppTheme();
+  const bounce = useMicroBounce(active);
   const isAlert = badge?.tone === 'alert';
   const showBadge = badge !== undefined && badge.count > 0;
   const activeIconColor = isDark ? '#A5B4FC' : '#4338CA';
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={showBadge ? badge.a11yLabel : undefined}
       aria-selected={active}
       aria-current={active ? 'page' : undefined}
       onPress={onPress}
       onLayout={onLayout}
+      hoverScale={1}
       className={`flex-row items-center gap-3 rounded-xl px-3 py-2.5 ${
         active
           ? pill
@@ -251,11 +266,13 @@ function NavRow({
           : 'hover:bg-slate-100 active:bg-slate-100 dark:hover:bg-white/5 dark:active:bg-white/5'
       }`}
     >
-      <Ionicons
-        name={active ? item.activeIcon : item.icon}
-        size={18}
-        color={active ? activeIconColor : palette.icon.muted}
-      />
+      <Animated.View style={bounce}>
+        <Ionicons
+          name={active ? item.activeIcon : item.icon}
+          size={18}
+          color={active ? activeIconColor : palette.icon.muted}
+        />
+      </Animated.View>
       <Text
         className={`flex-1 text-sm ${
           active
@@ -280,6 +297,6 @@ function NavRow({
           />
         </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }

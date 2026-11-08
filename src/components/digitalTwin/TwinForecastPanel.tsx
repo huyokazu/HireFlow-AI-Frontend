@@ -9,7 +9,7 @@ import { hireWeek, projectPipeline, type CampaignForecast, type ForecastFix } fr
 import { useAppTheme, type Palette } from '../../theme';
 import { barClassFor, PredictedBottlenecks } from '../campaignWizard/ForecastPanel';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
-import { Button } from '../ui/Button';
+import { ActionButton } from '../ui/ActionButton';
 import { Panel } from '../ui/Panel';
 import { SectionLabel } from '../ui/SectionLabel';
 import { TargetProgressBar } from '../ui/TargetProgressBar';
@@ -55,6 +55,8 @@ type TwinForecastPanelProps = {
   canApply: boolean;
   pending: PendingChange;
   applyFailed: boolean;
+  /** The scenario was just applied: the button shows it for a moment. */
+  justApplied?: boolean;
   onApply: () => void;
 };
 
@@ -68,6 +70,7 @@ export function TwinForecastPanel({
   canApply,
   pending,
   applyFailed,
+  justApplied = false,
   onApply,
 }: TwinForecastPanelProps) {
   const { t } = useI18n();
@@ -173,12 +176,14 @@ export function TwinForecastPanel({
           <Ionicons name="git-branch-outline" size={13} color={palette.icon.faint} />
           <Text className="flex-1 text-xs text-slate-400 dark:text-slate-500">{t.forecast.source}</Text>
         </View>
-        <Button
+        <ActionButton
           icon="checkmark-done"
-          label={pending === 'apply' ? copy.applying : pending === 'undo' ? copy.reverting : copy.apply}
-          loading={pending !== null}
-          // Stays at full strength while busy, so the spinner reads clearly.
-          disabled={!canApply && pending === null}
+          state={pending !== null ? 'loading' : justApplied ? 'success' : 'idle'}
+          label={copy.apply}
+          loadingLabel={pending === 'undo' ? copy.reverting : copy.applying}
+          successLabel={copy.appliedShort}
+          // Stays at full strength while busy, so the orb reads clearly.
+          disabled={!canApply && pending === null && !justApplied}
           onPress={onApply}
         />
       </View>

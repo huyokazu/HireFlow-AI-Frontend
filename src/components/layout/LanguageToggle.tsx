@@ -1,13 +1,17 @@
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-import { LANGUAGES, useI18n } from '../../i18n';
-import { useFluidSpan } from '../ui/motion';
+import { LANGUAGES, useI18n, type Language } from '../../i18n';
+import { useFluidSpan, useMicroBounce } from '../ui/motion';
+import { PressableScale } from '../ui/PressableScale';
 
 const SEGMENT_WIDTH = 40;
 const INSET = 3;
 
-/** `EN | VI` pill. The highlight glides (and stretches) between the two; the switch itself is instant. */
+/**
+ * `EN | VI` pill. The highlight glides between the two, stretching and overshooting a little, and the
+ * chosen code pops as it lands; the switch itself is instant.
+ */
 export function LanguageToggle() {
   const { language, setLanguage, t } = useI18n();
   const index = LANGUAGES.indexOf(language);
@@ -36,28 +40,48 @@ export function LanguageToggle() {
           highlightStyle,
         ]}
       />
-      {LANGUAGES.map((code) => {
-        const selected = code === language;
-        return (
-          <Pressable
-            key={code}
-            accessibilityRole="radio"
-            accessibilityLabel={t.header.languageNames[code]}
-            aria-checked={selected}
-            onPress={() => setLanguage(code)}
-            className="h-full items-center justify-center rounded-full"
-            style={{ width: SEGMENT_WIDTH }}
-          >
-            <Text
-              className={`text-xs font-bold tracking-wide ${
-                selected ? 'text-white' : 'text-slate-500 dark:text-slate-400'
-              }`}
-            >
-              {code.toUpperCase()}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {LANGUAGES.map((code) => (
+        <LanguageSegment
+          key={code}
+          code={code}
+          label={t.header.languageNames[code]}
+          selected={code === language}
+          onPress={() => setLanguage(code)}
+        />
+      ))}
     </View>
+  );
+}
+
+function LanguageSegment({
+  code,
+  label,
+  selected,
+  onPress,
+}: {
+  code: Language;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const bounce = useMicroBounce(selected);
+  return (
+    <PressableScale
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      aria-checked={selected}
+      onPress={onPress}
+      pressedScale={0.86}
+      hoverScale={1.06}
+      className="h-full items-center justify-center rounded-full"
+      style={{ width: SEGMENT_WIDTH }}
+    >
+      <Animated.Text
+        className={`text-xs font-bold tracking-wide ${selected ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`}
+        style={bounce}
+      >
+        {code.toUpperCase()}
+      </Animated.Text>
+    </PressableScale>
   );
 }
