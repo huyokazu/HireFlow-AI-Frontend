@@ -98,9 +98,25 @@ const MANUAL_MINUTES: Record<AgentKey, number> = {
   selfHealing: 1,
 };
 
+/** A recruiter's working day, for putting hours saved in terms of people. */
+const HOURS_PER_RECRUITER_DAY = 8;
+
 /** Recruiter hours the agents saved with today's work. */
 export function hoursSavedToday(stats: AgentStatsByKey): number {
   return AGENT_KEYS.reduce((sum, agent) => sum + (stats[agent].doneToday * MANUAL_MINUTES[agent]) / 60, 0);
+}
+
+/**
+ * Recruiter hours saved this week, rounded: the days before today plus today's work so far.
+ * The AI Agents and Analytics pages both show this number, so they work it out here.
+ */
+export function hoursSavedThisWeek(stats: AgentStatsByKey, hoursBeforeToday: number): number {
+  return Math.round(hoursBeforeToday + hoursSavedToday(stats));
+}
+
+/** Hours saved as whole recruiter days, at least one. */
+export function recruiterDays(hours: number): number {
+  return Math.max(1, Math.round(hours / HOURS_PER_RECRUITER_DAY));
 }
 
 let eventCount = 0;

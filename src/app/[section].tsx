@@ -4,7 +4,7 @@ import { isNavKey } from '../components/layout/navigation';
 import { NotFoundScreen } from '../screens/NotFoundScreen';
 import { SectionPlaceholderScreen } from '../screens/SectionPlaceholderScreen';
 
-/** Sidebar sections without a screen of their own yet (AI Agents, Analytics, Settings…). */
+/** Sidebar sections without a screen of their own yet (Settings). */
 export default function SectionRoute() {
   const { section } = useLocalSearchParams<{ section: string }>();
   if (section === 'dashboard') return <Redirect href="/" />;

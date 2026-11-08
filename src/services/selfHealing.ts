@@ -268,9 +268,10 @@ const MOCK_ALERTS: MockAlert[] = [
       target: 60,
     },
     rootCause: {
+      // 16 of the campaign's 38 qualified applicants, as on the Analytics page.
       summary: {
-        en: 'The ITviec posting expired 3 days ago. It brought in 41% of the qualified Go applicants, and the remaining channels are slowing down.',
-        vi: 'Tin đăng trên ITviec đã hết hạn 3 ngày trước. Kênh này mang lại 41% ứng viên Go đạt chuẩn, và các kênh còn lại đang chậm dần.',
+        en: 'The ITviec posting expired 3 days ago. It brought in 42% of the qualified Go applicants, and the remaining channels are slowing down.',
+        vi: 'Tin đăng trên ITviec đã hết hạn 3 ngày trước. Kênh này mang lại 42% ứng viên Go đạt chuẩn, và các kênh còn lại đang chậm dần.',
       },
       confidence: 72,
       factors: [

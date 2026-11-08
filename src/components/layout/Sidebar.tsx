@@ -52,7 +52,12 @@ export function getNavLabel(key: NavKey, t: Dictionary): string {
   return t.nav.items[key];
 }
 
-export type NavBadge = { count: number; tone?: 'neutral' | 'alert' };
+export type NavBadge = {
+  count: number;
+  tone?: 'neutral' | 'alert';
+  /** What screen readers announce for the item while the badge shows, when the count needs explaining. */
+  a11yLabel?: string;
+};
 
 type SidebarProps = {
   /** `null` on pages that are not in the navigation, such as "not found". */
@@ -167,11 +172,13 @@ function NavRow({
 }) {
   const { isDark, palette } = useAppTheme();
   const isAlert = badge?.tone === 'alert';
+  const showBadge = badge !== undefined && badge.count > 0;
   const activeIconColor = isDark ? '#A5B4FC' : '#4338CA';
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={showBadge ? badge.a11yLabel : undefined}
       aria-selected={active}
       aria-current={active ? 'page' : undefined}
       onPress={onPress}
@@ -195,7 +202,7 @@ function NavRow({
       >
         {label}
       </Text>
-      {badge && badge.count > 0 && (
+      {showBadge && (
         <View
           className={`min-w-5 items-center rounded-full px-1.5 py-0.5 ${
             isAlert ? 'bg-rose-500' : 'bg-slate-100 dark:bg-white/10'
