@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useAppTheme, type Palette } from '../../theme';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { staggerDelay } from '../ui/motion';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -62,7 +63,7 @@ export function SummaryStats({ stats, enterDelay = 0 }: SummaryStatsProps) {
   return (
     <View className="flex-row flex-wrap gap-3">
       {stats.map((stat, index) => (
-        <StatCard key={stat.key} stat={stat} enterDelay={enterDelay + index * 70} />
+        <StatCard key={stat.key} stat={stat} enterDelay={staggerDelay(index, enterDelay)} />
       ))}
     </View>
   );

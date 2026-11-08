@@ -9,6 +9,7 @@ import { SummaryStats, type SummaryStat } from '../components/dashboard/SummaryS
 import { AppHeader } from '../components/layout/AppHeader';
 import { ScreenContainer } from '../components/layout/ScreenContainer';
 import { SelfHealingAlertCard } from '../components/SelfHealingAlert';
+import { staggerDelay } from '../components/ui/motion';
 import { Panel, PanelLink } from '../components/ui/Panel';
 import { useI18n, type Dictionary } from '../i18n';
 import type { DashboardSummary } from '../services/dashboard';
@@ -18,7 +19,13 @@ import { useAppTheme } from '../theme';
 
 // Entrance order: header, stats (staggered), then the three panels.
 const STATS_DELAY = 80;
-const PANEL_DELAYS = { candidates: 360, alert: 440, campaigns: 520 };
+// The panels cascade in right after the four stats, one stagger step apart.
+const PANELS_DELAY = staggerDelay(4, STATS_DELAY) + 40;
+const PANEL_DELAYS = {
+  candidates: staggerDelay(0, PANELS_DELAY),
+  alert: staggerDelay(1, PANELS_DELAY),
+  campaigns: staggerDelay(2, PANELS_DELAY),
+};
 /** The dashboard previews a few campaigns; the Campaigns page lists them all. */
 const MAX_DASHBOARD_CAMPAIGNS = 4;
 /** Candidates at these stages have already been shortlisted. */

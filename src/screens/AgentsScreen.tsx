@@ -9,6 +9,7 @@ import { OrchestratorPanel } from '../components/agents/OrchestratorPanel';
 import { SummaryStats, type SummaryStat } from '../components/dashboard/SummaryStats';
 import { AppHeader } from '../components/layout/AppHeader';
 import { ScreenContainer } from '../components/layout/ScreenContainer';
+import { STAGGER_MS } from '../components/ui/motion';
 import { Toast } from '../components/ui/Toast';
 import { useI18n, type Dictionary } from '../i18n';
 import {
@@ -28,7 +29,7 @@ import { useAppTheme } from '../theme';
 const STATS_DELAY = 80;
 const ORCHESTRATOR_DELAY = 360;
 const CARDS_DELAY = 440;
-const CARD_STAGGER_MS = 60;
+const CARD_STAGGER_MS = STAGGER_MS;
 const FEED_DELAY = 520;
 /** How often relative times ("2 min ago") refresh. */
 const CLOCK_TICK_MS = 30_000;

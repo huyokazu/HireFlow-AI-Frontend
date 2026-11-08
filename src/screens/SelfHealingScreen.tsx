@@ -11,6 +11,7 @@ import { SelfHealingAlertCard } from '../components/SelfHealingAlert';
 import { CampaignMonitorPanel, type MonitorStatus } from '../components/selfHealing/CampaignMonitorPanel';
 import { HealingLogPanel } from '../components/selfHealing/HealingLogPanel';
 import { Button } from '../components/ui/Button';
+import { STAGGER_MS } from '../components/ui/motion';
 import { useI18n, type Dictionary } from '../i18n';
 import { PREVIOUS_RESOLUTION_HOURS, type BottleneckAlert, type HealingRecord } from '../services/selfHealing';
 import { useWorkspace } from '../state/WorkspaceProvider';
@@ -19,7 +20,7 @@ import { useAppTheme } from '../theme';
 // Entrance order: header, stats (staggered), then the alerts and the side panels.
 const STATS_DELAY = 80;
 const ALERTS_DELAY = 360;
-const ALERT_STAGGER_MS = 80;
+const ALERT_STAGGER_MS = STAGGER_MS;
 const SIDE_DELAYS = { monitor: 440, log: 520 };
 
 /**

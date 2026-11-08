@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { useAppTheme } from '../../theme';
+import { useFluidSpan } from '../ui/motion';
 
 const TRACK_PADDING = 4;
-const SLIDE_SPRING = { damping: 20, stiffness: 260, mass: 0.7 };
 
 type SegmentedControlProps<T extends string> = {
   options: readonly T[];
@@ -15,7 +15,7 @@ type SegmentedControlProps<T extends string> = {
   accessibilityLabel: string;
 };
 
-/** Pick-one control for a few short options; the highlight slides to the chosen one. */
+/** Pick-one control for a few short options; the highlight glides (and stretches) to the chosen one. */
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -26,16 +26,12 @@ export function SegmentedControl<T extends string>({
   const { palette } = useAppTheme();
   const [trackWidth, setTrackWidth] = useState(0);
   const selectedIndex = Math.max(0, options.indexOf(value));
-  const position = useSharedValue(selectedIndex);
   const segmentWidth = trackWidth > 0 ? (trackWidth - TRACK_PADDING * 2) / options.length : 0;
-
-  useEffect(() => {
-    position.set(withSpring(selectedIndex, SLIDE_SPRING));
-  }, [selectedIndex, position]);
+  const { start, end } = useFluidSpan(selectedIndex * segmentWidth, (selectedIndex + 1) * segmentWidth);
 
   const indicatorStyle = useAnimatedStyle(() => ({
-    width: segmentWidth,
-    transform: [{ translateX: position.get() * segmentWidth }],
+    left: TRACK_PADDING + start.get(),
+    width: end.get() - start.get(),
   }));
 
   return (
@@ -81,6 +77,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: TRACK_PADDING,
     bottom: TRACK_PADDING,
-    left: TRACK_PADDING,
   },
 });

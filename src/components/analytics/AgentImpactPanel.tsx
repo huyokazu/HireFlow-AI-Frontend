@@ -4,12 +4,14 @@ import { Text, View } from 'react-native';
 import { useI18n } from '../../i18n';
 import { AGENT_KEYS, type AgentStatsByKey } from '../../services/agents';
 import type { AgentWeek } from '../../services/analytics';
+import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { STAGGER_MS } from '../ui/motion';
 import { Panel, PanelLink } from '../ui/Panel';
 import { ColumnChart, PARTIAL_SWATCH_CLASS } from './ColumnChart';
 import { GrowBar } from './GrowBar';
 import { Readout, ReadoutValue } from './Readout';
 
-const AGREEMENT_STAGGER_MS = 60;
+const AGREEMENT_STAGGER_MS = STAGGER_MS;
 /** The agreement bars start once the weekly columns are mostly in. */
 const AGREEMENT_DELAY = 300;
 
@@ -83,9 +85,12 @@ export function AgentImpactPanel({ weeks, stats, onOpenAgents, enterDelay }: Age
                   delay={enterDelay + AGREEMENT_DELAY + index * AGREEMENT_STAGGER_MS}
                 />
               </View>
-              <Text className="w-10 text-right text-xs font-semibold text-slate-900 dark:text-white">
-                {stats[agent].agreementRate}%
-              </Text>
+              <AnimatedNumber
+                value={stats[agent].agreementRate}
+                format={(value) => `${value}%`}
+                delay={enterDelay + AGREEMENT_DELAY + index * AGREEMENT_STAGGER_MS}
+                className="w-10 text-right text-xs font-semibold text-slate-900 dark:text-white"
+              />
             </View>
           ))}
         </View>

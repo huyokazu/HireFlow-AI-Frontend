@@ -7,12 +7,13 @@ import type { CampaignHealth, CampaignSummary } from '../../services/dashboard';
 import { useAppTheme, type Palette } from '../../theme';
 import { niceStep } from '../../utils/charts';
 import { HEALTH_STYLES } from '../campaigns/healthStyles';
+import { STAGGER_MS } from '../ui/motion';
 import { Panel } from '../ui/Panel';
 import { GrowBar } from './GrowBar';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-const ENTER_STAGGER_MS = 70;
+const ENTER_STAGGER_MS = STAGGER_MS;
 
 // Health is a status: its colour always comes with an icon and the label, never alone.
 const HEALTH_ICONS: Record<CampaignHealth, { icon: IconName; color: (palette: Palette) => string }> = {

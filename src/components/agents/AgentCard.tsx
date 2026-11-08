@@ -92,7 +92,7 @@ export function AgentCard({
           <AnimatedNumber value={stats.doneToday} className={METRIC_VALUE} />
         </Metric>
         <Metric label={card.agreement}>
-          <Text className={METRIC_VALUE}>{stats.agreementRate}%</Text>
+          <AnimatedNumber value={stats.agreementRate} format={(value) => `${value}%`} className={METRIC_VALUE} />
         </Metric>
         <Metric label={card.perItem[agent]}>
           <Text className={METRIC_VALUE}>{card.duration(stats.medianSeconds)}</Text>

@@ -9,17 +9,13 @@ import { useAppTheme } from '../../theme';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
 import { PressableScale } from '../ui/PressableScale';
 import { CandidateCard } from './CandidateCard';
-import { SwapCard, type ExitVector, type SwapDirection, type SwapEvent } from './SwapCard';
+import { DECK_DEPTH, DECK_SLOTS, SwapCard, type ExitVector, type SwapDirection, type SwapEvent } from './SwapCard';
 
 type CandidateCardSwapProps = {
   candidates: Candidate[];
   /** Upper bound; the card shrinks to fit narrower containers. */
   maxCardWidth?: number;
   cardHeight?: number;
-  /** How many cards are drawn in the deck, including the front one. */
-  visibleCount?: number;
-  /** How much of each back card shows above the one in front. */
-  peek?: number;
   /** Candidates already shortlisted elsewhere (e.g. moved on the board); read once on mount. */
   initialShortlistedIds?: string[];
   onActiveCandidateChange?: (candidate: Candidate, index: number) => void;
@@ -27,13 +23,14 @@ type CandidateCardSwapProps = {
   onSkip?: (candidate: Candidate) => void;
 };
 
-/** 3D deck of candidate cards: Skip flings the front card left, Shortlist flings it right. */
+/**
+ * 3D deck of candidate cards, three drawn at a time. Skip flings the front card off to the left,
+ * Shortlist to the right, and the cards behind spring forward into its place.
+ */
 export function CandidateCardSwap({
   candidates,
   maxCardWidth = 360,
   cardHeight = 500,
-  visibleCount = 4,
-  peek = 16,
   initialShortlistedIds,
   onActiveCandidateChange,
   onShortlist,
@@ -48,8 +45,7 @@ export function CandidateCardSwap({
 
   const total = candidates.length;
   const activeIndex = total > 0 ? frontIndex % total : 0;
-  const stackCount = Math.max(Math.min(visibleCount, total), 1);
-  const stackDepth = stackCount - 1;
+  const stackCount = Math.max(Math.min(DECK_SLOTS, total), 1);
   const cardWidth = Math.min(maxCardWidth, containerWidth);
   const canSwap = total > 1;
   const current = candidates[activeIndex];
@@ -68,9 +64,9 @@ export function CandidateCardSwap({
   const skip = useCallback(
     (exit?: ExitVector) => {
       if (current) onSkip?.(current);
-      swapTo('next', exit ?? { x: -cardWidth * 1.5, y: cardHeight * 0.1 });
+      swapTo('next', exit ?? { x: -1 });
     },
-    [cardHeight, cardWidth, current, onSkip, swapTo],
+    [current, onSkip, swapTo],
   );
 
   const shortlist = useCallback(
@@ -79,9 +75,9 @@ export function CandidateCardSwap({
         setShortlistedIds((ids) => (ids.includes(current.id) ? ids : [...ids, current.id]));
         onShortlist?.(current);
       }
-      swapTo('next', exit ?? { x: cardWidth * 1.5, y: cardHeight * 0.1 });
+      swapTo('next', exit ?? { x: 1 });
     },
-    [cardHeight, cardWidth, current, onShortlist, swapTo],
+    [current, onShortlist, swapTo],
   );
 
   // Swipe right to shortlist, left to skip.
@@ -114,7 +110,7 @@ export function CandidateCardSwap({
         <>
           <View
             // Sits above the controls so a flying card passes in front of them.
-            style={{ width: cardWidth, height: cardHeight + stackDepth * peek, zIndex: 1 }}
+            style={{ width: cardWidth, height: cardHeight + (stackCount > 1 ? DECK_DEPTH : 0), zIndex: 1 }}
           >
             {candidates.map((candidate, index) => {
               const slot = (index - activeIndex + total) % total;
@@ -128,7 +124,6 @@ export function CandidateCardSwap({
                   swap={lastSwap}
                   width={cardWidth}
                   height={cardHeight}
-                  peek={peek}
                   swipeEnabled={canSwap}
                   onSwipe={handleSwipe}
                   stampLabels={{ skip: t.deck.stampSkip, shortlist: t.deck.stampShortlist }}

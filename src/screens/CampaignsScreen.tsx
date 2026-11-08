@@ -6,12 +6,13 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CampaignCard, NewCampaignCard } from '../components/campaigns/CampaignCard';
 import { AppHeader } from '../components/layout/AppHeader';
 import { ScreenContainer } from '../components/layout/ScreenContainer';
+import { STAGGER_MS } from '../components/ui/motion';
 import { useI18n } from '../i18n';
 import { useWorkspace } from '../state/WorkspaceProvider';
 import { useAppTheme } from '../theme';
 
 const GRID_GAP = 16;
-const CARD_STAGGER_MS = 60;
+const CARD_STAGGER_MS = STAGGER_MS;
 
 /** Columns that fit the measured width: three on a desktop, two on a tablet, one on a phone. */
 function columnsFor(width: number) {

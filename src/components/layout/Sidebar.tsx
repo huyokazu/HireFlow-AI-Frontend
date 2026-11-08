@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState, type ComponentProps } from 'react';
+import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useI18n, type Dictionary } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { getInitials } from '../../utils/formatters';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
-import { PulseRing } from '../ui/pulse';
+import { useFluidSpan } from '../ui/motion';
+import { RadarPulse } from '../ui/pulse';
 import { BrandMark } from './BrandMark';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -68,10 +70,26 @@ type SidebarProps = {
   user: { name: string; title: string };
 };
 
+/** Vertical position of a row (or a section) inside its parent. */
+type Frame = { y: number; height: number };
+
 export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user }: SidebarProps) {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const { palette } = useAppTheme();
+  // Where each section and row sits, so the active pill can glide from one row to another.
+  const [sectionFrames, setSectionFrames] = useState<Partial<Record<NavSection['key'], Frame>>>({});
+  const [rowFrames, setRowFrames] = useState<Partial<Record<NavKey, Frame>>>({});
+  const activeSection = NAV_SECTIONS.find((section) => section.items.some((item) => item.key === activeKey));
+  const sectionFrame = activeSection ? sectionFrames[activeSection.key] : undefined;
+  const rowFrame = activeKey ? rowFrames[activeKey] : undefined;
+  const pillTop = sectionFrame && rowFrame ? sectionFrame.y + rowFrame.y : 0;
+  const pillBottom = sectionFrame && rowFrame ? pillTop + rowFrame.height : 0;
+
+  const frameOf = (event: LayoutChangeEvent): Frame => ({
+    y: event.nativeEvent.layout.y,
+    height: event.nativeEvent.layout.height,
+  });
 
   return (
     <View
@@ -83,8 +101,16 @@ export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user
       </View>
 
       <ScrollView className="mt-4 flex-1" contentContainerClassName="px-3 pb-4">
+        <ActivePill top={pillTop} bottom={pillBottom} visible={pillBottom > pillTop} />
         {NAV_SECTIONS.map((section) => (
-          <View key={section.key} className="mt-4">
+          <View
+            key={section.key}
+            className="mt-4"
+            onLayout={(event) => {
+              const frame = frameOf(event);
+              setSectionFrames((current) => ({ ...current, [section.key]: frame }));
+            }}
+          >
             <Text className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               {t.nav.sections[section.key]}
             </Text>
@@ -94,8 +120,14 @@ export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user
                 item={item}
                 label={t.nav.items[item.key]}
                 active={item.key === activeKey}
+                // The gliding pill draws this list's active background.
+                pill
                 badge={badges[item.key]}
                 onPress={() => onNavigate(item.key)}
+                onLayout={(event) => {
+                  const frame = frameOf(event);
+                  setRowFrames((current) => ({ ...current, [item.key]: frame }));
+                }}
               />
             ))}
           </View>
@@ -110,7 +142,7 @@ export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user
             style={{ boxShadow: palette.shadow.agentGlow }}
           >
             <View className="h-2.5 w-2.5 items-center justify-center">
-              <PulseRing color={palette.emerald} active size={10} />
+              <RadarPulse color={palette.emerald} active size={10} />
               <View className="h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
             </View>
             <View className="flex-1">
@@ -157,18 +189,46 @@ export function Sidebar({ activeKey, onNavigate, badges = {}, agentsOnline, user
   );
 }
 
+/** The active row's background: it glides (and stretches) to whichever row becomes active. */
+function ActivePill({ top, bottom, visible }: { top: number; bottom: number; visible: boolean }) {
+  const { start, end } = useFluidSpan(top, bottom);
+  const presence = useSharedValue(visible ? 1 : 0);
+
+  useEffect(() => {
+    presence.set(withTiming(visible ? 1 : 0, { duration: 200 }));
+  }, [visible, presence]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: presence.get(),
+    top: start.get(),
+    height: Math.max(0, end.get() - start.get()),
+  }));
+
+  return (
+    <Animated.View
+      className="absolute left-3 right-3 rounded-xl bg-indigo-50 dark:bg-indigo-500/15"
+      style={[{ pointerEvents: 'none' }, style]}
+    />
+  );
+}
+
 function NavRow({
   item,
   label,
   active,
+  pill = false,
   badge,
   onPress,
+  onLayout,
 }: {
   item: NavItem;
   label: string;
   active: boolean;
+  /** Leaves the active background to a gliding pill behind the list. */
+  pill?: boolean;
   badge?: NavBadge;
   onPress: () => void;
+  onLayout?: (event: LayoutChangeEvent) => void;
 }) {
   const { isDark, palette } = useAppTheme();
   const isAlert = badge?.tone === 'alert';
@@ -182,9 +242,12 @@ function NavRow({
       aria-selected={active}
       aria-current={active ? 'page' : undefined}
       onPress={onPress}
+      onLayout={onLayout}
       className={`flex-row items-center gap-3 rounded-xl px-3 py-2.5 ${
         active
-          ? 'bg-indigo-50 dark:bg-indigo-500/15'
+          ? pill
+            ? ''
+            : 'bg-indigo-50 dark:bg-indigo-500/15'
           : 'hover:bg-slate-100 active:bg-slate-100 dark:hover:bg-white/5 dark:active:bg-white/5'
       }`}
     >

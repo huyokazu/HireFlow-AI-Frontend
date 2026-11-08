@@ -103,7 +103,38 @@ function QueueChip({ queued, held }: { queued: number; held: boolean }) {
   );
 }
 
-function FlowDots({ travel, vertical }: { travel: number; vertical: boolean }) {
+type DotTone = 'indigo' | 'emerald';
+
+// Class names are spelled out in full so Tailwind can find them when it scans the source.
+const DOT_CLASSES: Record<DotTone, string> = {
+  indigo: 'bg-indigo-500 dark:bg-indigo-400',
+  emerald: 'bg-emerald-500 dark:bg-emerald-400',
+};
+
+type FlowLinkProps = {
+  /** Dots move while true; the line stays either way. */
+  flowing: boolean;
+  tone: DotTone;
+  height: number;
+};
+
+/**
+ * A short vertical link without a queue, e.g. from the Orchestrator down to the first agent, or from
+ * the flow down to the monitor that watches it. Decorative: the panel's text says the same.
+ */
+export function FlowLink({ flowing, tone, height }: FlowLinkProps) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <View aria-hidden style={styles.verticalRow}>
+      <View style={[styles.verticalTrack, { height }]}>
+        <View className="rounded-full bg-slate-200 dark:bg-white/15" style={styles.verticalLine} />
+        {flowing && !reduceMotion && <FlowDots travel={height - DOT_SIZE} vertical tone={tone} />}
+      </View>
+    </View>
+  );
+}
+
+function FlowDots({ travel, vertical, tone = 'indigo' }: { travel: number; vertical: boolean; tone?: DotTone }) {
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -114,7 +145,14 @@ function FlowDots({ travel, vertical }: { travel: number; vertical: boolean }) {
   return (
     <>
       {Array.from({ length: DOT_COUNT }, (_, index) => (
-        <FlowDot key={index} progress={progress} offset={index / DOT_COUNT} travel={travel} vertical={vertical} />
+        <FlowDot
+          key={index}
+          progress={progress}
+          offset={index / DOT_COUNT}
+          travel={travel}
+          vertical={vertical}
+          className={DOT_CLASSES[tone]}
+        />
       ))}
     </>
   );
@@ -125,11 +163,13 @@ function FlowDot({
   offset,
   travel,
   vertical,
+  className,
 }: {
   progress: SharedValue<number>;
   offset: number;
   travel: number;
   vertical: boolean;
+  className: string;
 }) {
   const style = useAnimatedStyle(() => {
     const position = (progress.get() + offset) % 1;
@@ -143,7 +183,7 @@ function FlowDot({
 
   return (
     <Animated.View
-      className="bg-indigo-500 dark:bg-indigo-400"
+      className={className}
       style={[styles.dot, vertical ? styles.verticalDot : styles.horizontalDot, style]}
     />
   );

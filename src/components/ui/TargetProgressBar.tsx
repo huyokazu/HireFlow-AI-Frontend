@@ -6,8 +6,11 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withDelay,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
+
+import { SPRINGS } from './motion';
 
 type TargetProgressBarProps = {
   /** Percentages, 0–100. */
@@ -18,15 +21,18 @@ type TargetProgressBarProps = {
   size?: 'sm' | 'md';
   /** Wait before the fill grows in, for staggered entrances. */
   delay?: number;
+  /** Wait before gliding to a later value, e.g. to cascade with other changes. */
+  updateDelay?: number;
 };
 
-/** Progress bar with a vertical marker where the target sits. The fill glides to new values. */
+/** Progress bar with a vertical marker where the target sits. The fill springs to new values. */
 export function TargetProgressBar({
   value,
   target,
   barClassName,
   size = 'md',
   delay = 0,
+  updateDelay = 0,
 }: TargetProgressBarProps) {
   const reduceMotion = useReducedMotion();
   const fill = useSharedValue(reduceMotion ? clampPercent(value) : 0);
@@ -36,17 +42,19 @@ export function TargetProgressBar({
 
   useEffect(() => {
     const next = clampPercent(value);
-    // Only the first grow-in waits for the entrance; later changes respond at once.
-    const wait = isFirstRun.current ? delay : 0;
+    const firstRun = isFirstRun.current;
     isFirstRun.current = false;
+    // The first fill grows in with the entrance; later values spring there, overshooting a touch.
     fill.value = reduceMotion
       ? next
-      : withDelay(wait, withTiming(next, { duration: 900, easing: Easing.out(Easing.cubic) }));
+      : firstRun
+        ? withDelay(delay, withTiming(next, { duration: 900, easing: Easing.out(Easing.cubic) }))
+        : withDelay(updateDelay, withSpring(next, SPRINGS.value));
     // `fill` is a stable shared value; only a new value should restart the animation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, reduceMotion]);
 
-  const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value}%` }));
+  const fillStyle = useAnimatedStyle(() => ({ width: `${Math.max(0, fill.value)}%` }));
 
   return (
     <View

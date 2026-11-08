@@ -5,11 +5,12 @@ import { useI18n, type Dictionary } from '../../i18n';
 import type { ChannelResult } from '../../services/analytics';
 import { CHANNEL_NAMES, type SourcingChannel } from '../../services/campaigns';
 import { percentOf } from '../../utils/charts';
+import { STAGGER_MS } from '../ui/motion';
 import { Panel } from '../ui/Panel';
 import { GrowBar } from './GrowBar';
 import { ChartNote, Readout, ReadoutValue } from './Readout';
 
-const ENTER_STAGGER_MS = 80;
+const ENTER_STAGGER_MS = STAGGER_MS;
 
 // Qualified applicants are the accent; the rest of each channel's applicants recede behind them.
 // The pair is validated against the panel surfaces, and every row prints its counts.

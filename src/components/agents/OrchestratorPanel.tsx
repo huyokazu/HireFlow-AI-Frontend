@@ -13,10 +13,10 @@ import {
 } from '../../services/agents';
 import { useAppTheme } from '../../theme';
 import { Button } from '../ui/Button';
-import { PulseRing } from '../ui/pulse';
+import { RadarPulse } from '../ui/pulse';
 import { AgentStatusBadge } from './AgentStatusBadge';
 import { ACTOR_ICONS, agentStatus } from './agentStyles';
-import { FlowConnector } from './FlowConnector';
+import { FlowConnector, FlowLink } from './FlowConnector';
 
 const ORCHESTRATOR_GLOW = '0px 10px 24px -10px rgba(79, 70, 229, 0.7)';
 
@@ -46,7 +46,7 @@ export function OrchestratorPanel({ stats, paused, campaigns, onPauseAll, onResu
       <View className="gap-4 md:flex-row md:items-start">
         <View className="flex-1 flex-row items-start gap-4">
           <View className="h-12 w-12 items-center justify-center">
-            <PulseRing color={palette.indigo} active={!allPaused} size={48} />
+            <RadarPulse color={palette.indigo} active={!allPaused} size={48} reach={1.9} />
             <View
               className={`h-12 w-12 items-center justify-center rounded-2xl ${
                 allPaused ? 'bg-slate-400 dark:bg-slate-600' : 'bg-indigo-600 dark:bg-indigo-500'
@@ -61,6 +61,7 @@ export function OrchestratorPanel({ stats, paused, campaigns, onPauseAll, onResu
             <Text className="text-sm text-slate-500 dark:text-slate-400">{copy.roles.orchestrator}</Text>
             <View className="mt-1">
               <AgentStatusBadge
+                radar
                 status={allPaused ? 'paused' : 'working'}
                 label={allPaused ? copy.orchestrator.holding : copy.orchestrator.coordinating(campaigns)}
               />
@@ -77,8 +78,13 @@ export function OrchestratorPanel({ stats, paused, campaigns, onPauseAll, onResu
         />
       </View>
 
+      {/* The Orchestrator dispatches work to the first agent. */}
+      <View className="mt-3">
+        <FlowLink flowing={!allPaused && !paused[FLOW_AGENTS[0]]} tone="indigo" height={24} />
+      </View>
+
       {/* A column on narrow screens; one row from xl up, where the nodes fit side by side. */}
-      <View role="group" aria-label={copy.orchestrator.flowA11y} className="mt-6 xl:flex-row xl:items-center">
+      <View role="group" aria-label={copy.orchestrator.flowA11y} className="xl:flex-row xl:items-center">
         {FLOW_AGENTS.map((agent, index) => {
           const connector = (vertical: boolean) => (
             <FlowConnector
@@ -103,6 +109,8 @@ export function OrchestratorPanel({ stats, paused, campaigns, onPauseAll, onResu
         })}
       </View>
 
+      {/* Every stage reports to the Self-Healing monitor. */}
+      <FlowLink flowing={!paused.selfHealing} tone="emerald" height={20} />
       <WatcherBand stats={stats.selfHealing} paused={paused.selfHealing} />
     </View>
   );
@@ -151,7 +159,7 @@ function WatcherBand({ stats, paused }: { stats: AgentStats; paused: boolean }) 
     <View
       role="img"
       aria-label={`${copy.orchestrator.nodeA11y(copy.names.selfHealing, copy.status[status], stats.doneToday)}. ${copy.orchestrator.watcher}`}
-      className="mt-4 flex-row items-center gap-3 rounded-2xl border border-dashed border-slate-200 px-4 py-3 dark:border-white/15"
+      className="flex-row items-center gap-3 rounded-2xl border border-dashed border-slate-200 px-4 py-3 dark:border-white/15"
     >
       <Ionicons name={ACTOR_ICONS.selfHealing} size={16} color={paused ? palette.icon.muted : palette.emerald} />
       <View className="flex-1 gap-0.5 md:flex-row md:items-center md:gap-2">
