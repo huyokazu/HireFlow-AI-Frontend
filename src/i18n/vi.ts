@@ -53,6 +53,7 @@ export const vi: Dictionary = {
       settings: 'Cài đặt',
     },
     agentsOnline: (count: number) => `${count} AI Agent đang hoạt động`,
+    candidatesA11y: (onBoard: number) => `Ứng viên, ${onBoard} người được các AI Agent chuyển đến bạn`,
     orchestratorMonitoring: 'Agent Điều phối đang giám sát',
     agentsPaused: 'Mọi AI Agent đang tạm dừng',
     resumeInAgents: 'Cho chạy tiếp trong mục AI Agent',
@@ -134,7 +135,8 @@ export const vi: Dictionary = {
   },
   board: {
     title: 'Quy trình ứng viên',
-    subtitle: (count: number) => `${count} ứng viên qua 5 giai đoạn`,
+    subtitle: (onBoard: number, total: number) =>
+      total === 0 ? 'Chưa có ứng viên' : `${onBoard} trong số ${total} ứng viên · được các AI Agent chuyển đến bạn`,
     allCampaigns: 'Tất cả chiến dịch',
     filterLabel: 'Lọc theo chiến dịch',
     dragHint: 'Kéo thẻ sang giai đoạn khác, hoặc bấm vào thẻ để xem chi tiết.',

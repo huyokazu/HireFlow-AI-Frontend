@@ -272,8 +272,11 @@ const OTHER_CANDIDATES: PipelineCandidate[] = [
 ];
 
 /**
- * Every candidate on the hiring board, best match first.
- * Mock implementation: replace with a Supabase query on the applications table
+ * The hiring board: the candidates the AI agents put in front of HR, best match first. That is the
+ * Matching Agent's ranked CVs, the ones that need a human call, and everyone still in the running from
+ * interview on. A campaign's other applicants (its `candidates` on the dashboard count them all) are
+ * still with the agents, were screened out, or left.
+ * Mock implementation: replace with a Supabase query on the applications the Orchestrator handed to HR
  * (e.g. `supabase.from('applications').select('*, candidate:candidates(*)')`).
  */
 export async function fetchPipeline(): Promise<PipelineCandidate[]> {

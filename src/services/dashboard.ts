@@ -10,6 +10,10 @@ export type CampaignSummary = {
   department: Localized;
   /** Current pipeline stage; the label comes from the dictionary. */
   stage: CampaignStage;
+  /**
+   * Everyone who applied, counting those screened out and those who left. The board shows the ones
+   * the AI agents put in front of HR.
+   */
   candidates: number;
   /** Percentages, 0–100. */
   matchRate: number;
@@ -20,6 +24,7 @@ export type CampaignSummary = {
 export type DashboardSummary = {
   activeCampaigns: number;
   campaignsAtRisk: number;
+  /** Every campaign's `candidates`, added up. */
   candidatesInPipeline: number;
   newCandidatesThisWeek: number;
   averageMatchRate: number;

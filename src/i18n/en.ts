@@ -56,6 +56,7 @@ export const en = {
       settings: 'Settings',
     },
     agentsOnline: (count: number) => (count === 1 ? '1 AI agent online' : `${count} AI agents online`),
+    candidatesA11y: (onBoard: number) => `Candidates, ${onBoard} put in front of you by the AI agents`,
     orchestratorMonitoring: 'Orchestrator is monitoring',
     agentsPaused: 'All AI agents paused',
     resumeInAgents: 'Resume them in AI Agents',
@@ -136,8 +137,10 @@ export const en = {
   },
   board: {
     title: 'Candidate pipeline',
-    subtitle: (count: number) =>
-      count === 1 ? '1 candidate across 5 stages' : `${count} candidates across 5 stages`,
+    subtitle: (onBoard: number, total: number) =>
+      total === 0
+        ? 'No candidates yet'
+        : `${onBoard} of ${total === 1 ? '1 candidate' : `${total} candidates`} · put in front of you by the AI agents`,
     allCampaigns: 'All campaigns',
     filterLabel: 'Filter by campaign',
     dragHint: 'Drag a card to another stage, or click it for details.',

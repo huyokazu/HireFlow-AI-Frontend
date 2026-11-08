@@ -40,9 +40,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isWide = width >= WIDE_LAYOUT_MIN_WIDTH;
   const pathname = usePathname();
   const router = useRouter();
-  const { pick } = useI18n();
-  const { summary, openAlerts, agentsOnline } = useWorkspace();
+  const { t, pick } = useI18n();
+  const { pipeline, openAlerts, agentsOnline } = useWorkspace();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // The Candidates item leads to the board, so its badge counts the board: the candidates the AI agents
+  // put in front of HR. The dashboard's "candidates in pipeline" counts every applicant.
+  const onBoard = pipeline?.length ?? 0;
 
   const navigate = useCallback(
     (key: NavKey) => {
@@ -62,7 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       agentsOnline={agentsOnline}
       user={{ name: CURRENT_USER.name, title: pick(CURRENT_USER.title) }}
       badges={{
-        candidates: { count: summary?.candidatesInPipeline ?? 0 },
+        candidates: { count: onBoard, a11yLabel: t.nav.candidatesA11y(onBoard) },
         'self-healing': { count: openAlerts.length, tone: 'alert' },
       }}
     />

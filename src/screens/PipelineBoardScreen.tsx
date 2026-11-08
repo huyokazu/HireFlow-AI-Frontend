@@ -79,15 +79,19 @@ export function PipelineBoardScreen() {
   const selectCampaign = (campaignId: string | null) => router.setParams({ campaign: campaignId ?? undefined });
 
   const openCandidate = pipeline?.find((candidate) => candidate.id === openId) ?? null;
-  const countLabel = t.board.subtitle(visible.length);
+  // The board holds the candidates the AI agents put in front of HR, while the dashboard counts every
+  // applicant, so the header says how many of those are on the board.
+  const subtitle =
+    !pipeline || !summary
+      ? ''
+      : activeCampaign
+        ? `${pick(activeCampaign.title)} · ${t.board.subtitle(visible.length, activeCampaign.candidates)}`
+        : t.board.subtitle(pipeline.length, summary.candidatesInPipeline);
 
   return (
     <View style={styles.flex}>
       <ScreenContainer wide>
-        <AppHeader
-          title={t.board.title}
-          subtitle={activeCampaign ? `${pick(activeCampaign.title)} · ${countLabel}` : countLabel}
-        />
+        <AppHeader title={t.board.title} subtitle={subtitle} />
 
         {!pipeline || !summary ? (
           <ActivityIndicator className="mt-24" color={palette.indigo} />
