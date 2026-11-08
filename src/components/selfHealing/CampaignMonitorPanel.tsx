@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { useI18n } from '../../i18n';
 import type { CampaignSummary } from '../../services/dashboard';
@@ -100,8 +100,9 @@ function MonitorRow({
       className={`flex-row items-center gap-1 ${divider ? 'border-t border-slate-100 dark:border-white/10' : ''}`}
     >
       {/* Siblings, not nested: one button can't hold another. */}
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
+        hoverScale={1.01}
         accessibilityLabel={`${copy.openBoardA11y(title)}, ${copy.status[status]}`}
         onPress={onOpenBoard}
         className="flex-1 gap-2 rounded-xl px-2 py-3 hover:bg-slate-50 active:bg-slate-50 dark:hover:bg-white/5 dark:active:bg-white/5"
@@ -126,7 +127,7 @@ function MonitorRow({
         <Text className="text-xs text-slate-500 dark:text-slate-400">
           {campaign.matchRate}% {t.campaignsPage.ofTarget(campaign.targetMatchRate)}
         </Text>
-      </Pressable>
+      </PressableScale>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={copy.simulateA11y(title)}

@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import Animated, {
   FadeIn,
   FadeInDown,
+  FadeOut,
   LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
@@ -23,8 +24,10 @@ import type {
 import { useAppTheme } from '../../theme';
 import { formatRelativeTime } from '../../utils/formatters';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { SPRINGS, staggerDelay } from '../ui/motion';
 import { PressableScale } from '../ui/PressableScale';
-import { PulseGlow, PulseRing } from '../ui/pulse';
+import { ProcessingShimmer } from '../ui/ProcessingShimmer';
+import { PulseGlow, PulseRing, SuccessPulse } from '../ui/pulse';
 import { SectionLabel } from '../ui/SectionLabel';
 import { TargetProgressBar } from '../ui/TargetProgressBar';
 
@@ -106,6 +109,20 @@ const IMPACT_STYLES: Record<
 
 const ICON_SIZE = 44;
 
+/** Once a fix is approved the card morphs, then the new numbers and the summary cascade in. */
+const CASCADE_START = 120;
+const CASCADE = {
+  chip: staggerDelay(0, CASCADE_START),
+  number: staggerDelay(1, CASCADE_START),
+  bar: staggerDelay(2, CASCADE_START),
+  summary: staggerDelay(3, CASCADE_START),
+  done: staggerDelay(4, CASCADE_START),
+};
+const MORPH = LinearTransition.springify()
+  .stiffness(SPRINGS.morph.stiffness)
+  .damping(SPRINGS.morph.damping)
+  .mass(SPRINGS.morph.mass);
+
 type SelfHealingAlertCardProps = {
   alert: BottleneckAlert;
   /** Resolve once the Orchestrator Agent accepted the fix; throw to show an error. */
@@ -181,7 +198,8 @@ export function SelfHealingAlertCard({
       />
 
       <Animated.View
-        layout={reduceMotion ? undefined : LinearTransition.duration(320)}
+        // The height springs between states instead of jumping.
+        layout={reduceMotion ? undefined : MORPH}
         className={`overflow-hidden rounded-3xl border bg-white dark:bg-gray-900 ${tone.borderClassName}`}
       >
         <LinearGradient colors={severityTone.wash[mode]} style={styles.wash} />
@@ -230,19 +248,26 @@ export function SelfHealingAlertCard({
         </View>
 
         <View className="mx-5 rounded-2xl border border-slate-200/70 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
-          <View className="flex-row items-center justify-between gap-2">
+          <SuccessPulse play={isApproved} color={TONES.resolved.glowColor[mode]} delay={CASCADE.chip} />
+          {/* Keyed, so the forecast label and chip fade in when the fix is approved. */}
+          <Animated.View
+            key={isApproved ? 'forecast' : 'gap'}
+            entering={reduceMotion || !isApproved ? undefined : FadeIn.delay(CASCADE.chip).duration(260)}
+            className="flex-row items-center justify-between gap-2"
+          >
             <SectionLabel>{isApproved ? t.alert.forecastLabel : pick(alert.metric.label)}</SectionLabel>
             <View className={`rounded-full border px-2 py-0.5 ${metricTone.chipClassName}`}>
               <Text className={`text-xs font-semibold ${metricTone.textClassName}`}>
                 {isApproved ? t.alert.forecastChip(lift) : t.alert.belowTarget(gapPercent)}
               </Text>
             </View>
-          </View>
+          </Animated.View>
           <View className="mt-2 flex-row items-baseline gap-1.5">
             <AnimatedNumber
               value={shownRate}
               format={(value) => `${value}%`}
               delay={enterDelay + 200}
+              updateDelay={CASCADE.number}
               className="text-3xl font-bold text-slate-900 dark:text-white"
             />
             <Text className="text-sm text-slate-500 dark:text-slate-400">{t.alert.vsTarget(target)}</Text>
@@ -253,6 +278,7 @@ export function SelfHealingAlertCard({
               target={target}
               barClassName={metricTone.barClassName}
               delay={enterDelay + 200}
+              updateDelay={CASCADE.bar}
             />
           </View>
         </View>
@@ -304,12 +330,15 @@ export function SelfHealingAlertCard({
         </View>
 
         {isApproved && selectedFix ? (
-          <Animated.View key="approved" entering={reduceMotion ? undefined : FadeInDown.springify().damping(16)}>
+          <Animated.View
+            key="approved"
+            entering={reduceMotion ? undefined : FadeInDown.delay(CASCADE.summary).springify().damping(16)}
+          >
             <View
               className="mx-5 mt-5 flex-row gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-400/25 dark:bg-emerald-500/10"
               style={{ boxShadow: palette.shadow.agentGlow }}
             >
-              <Animated.View entering={reduceMotion ? undefined : ZoomIn.delay(150).springify()}>
+              <Animated.View entering={reduceMotion ? undefined : ZoomIn.delay(CASCADE.done).springify()}>
                 <Ionicons name="checkmark-circle" size={22} color={palette.emerald} />
               </Animated.View>
               <View className="flex-1">
@@ -322,21 +351,23 @@ export function SelfHealingAlertCard({
               </View>
             </View>
             {dismiss ? (
-              <Footer>
-                <PressableScale
-                  accessibilityRole="button"
-                  onPress={dismiss}
-                  className="h-11 flex-1 items-center justify-center rounded-xl bg-slate-900 px-4 active:bg-slate-800 dark:bg-white/10 dark:active:bg-white/15"
-                >
-                  <Text className="text-sm font-semibold text-white">{t.alert.done}</Text>
-                </PressableScale>
-              </Footer>
+              <Animated.View entering={reduceMotion ? undefined : FadeIn.delay(CASCADE.done).duration(260)}>
+                <Footer>
+                  <PressableScale
+                    accessibilityRole="button"
+                    onPress={dismiss}
+                    className="h-11 flex-1 items-center justify-center rounded-xl bg-slate-900 px-4 active:bg-slate-800 dark:bg-white/10 dark:active:bg-white/15"
+                  >
+                    <Text className="text-sm font-semibold text-white">{t.alert.done}</Text>
+                  </PressableScale>
+                </Footer>
+              </Animated.View>
             ) : (
               <View className="h-5" />
             )}
           </Animated.View>
         ) : (
-          <View key="pending">
+          <Animated.View key="pending" exiting={reduceMotion ? undefined : FadeOut.duration(160)}>
             <View className="px-5 pt-5">
               <SectionLabel>{t.alert.suggestedFixes}</SectionLabel>
               <View accessibilityRole="radiogroup" className="mt-2 gap-2">
@@ -401,8 +432,10 @@ export function SelfHealingAlertCard({
                 </Animated.Text>
               </PressableScale>
             </Footer>
-          </View>
+          </Animated.View>
         )}
+
+        <ProcessingShimmer active={isApproving} />
       </Animated.View>
     </Animated.View>
   );

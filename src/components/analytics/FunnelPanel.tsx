@@ -6,11 +6,12 @@ import { useI18n } from '../../i18n';
 import { FUNNEL_STAGES, type FunnelCounts, type FunnelStage } from '../../services/analytics';
 import { useAppTheme } from '../../theme';
 import { formatShare, percentOf } from '../../utils/charts';
+import { STAGGER_MS } from '../ui/motion';
 import { Panel, PanelLink } from '../ui/Panel';
 import { GrowBar } from './GrowBar';
 import { ChartNote, Readout, ReadoutValue } from './Readout';
 
-const ENTER_STAGGER_MS = 80;
+const ENTER_STAGGER_MS = STAGGER_MS;
 
 // Ordinal: one hue, a step darker at each stage in light mode and a step lighter in dark mode.
 // Validated as an ordinal ramp against the panel surfaces in both modes; every row prints its count.

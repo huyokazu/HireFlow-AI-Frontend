@@ -1,32 +1,21 @@
-import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { LANGUAGES, useI18n } from '../../i18n';
+import { useFluidSpan } from '../ui/motion';
 
 const SEGMENT_WIDTH = 40;
 const INSET = 3;
-const SPRING = { damping: 18, stiffness: 260, mass: 0.7 };
 
-/** `EN | VI` pill. The highlight slides between the two; the switch itself is instant. */
+/** `EN | VI` pill. The highlight glides (and stretches) between the two; the switch itself is instant. */
 export function LanguageToggle() {
   const { language, setLanguage, t } = useI18n();
-  const reduceMotion = useReducedMotion();
   const index = LANGUAGES.indexOf(language);
-  const position = useSharedValue(index);
-
-  useEffect(() => {
-    position.value = reduceMotion ? withTiming(index, { duration: 0 }) : withSpring(index, SPRING);
-  }, [index, reduceMotion, position]);
+  const { start, end } = useFluidSpan(index * SEGMENT_WIDTH, (index + 1) * SEGMENT_WIDTH);
 
   const highlightStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: position.value * SEGMENT_WIDTH }],
+    left: INSET + start.get(),
+    width: end.get() - start.get(),
   }));
 
   return (
@@ -42,8 +31,6 @@ export function LanguageToggle() {
           {
             top: INSET,
             bottom: INSET,
-            left: INSET,
-            width: SEGMENT_WIDTH,
             boxShadow: '0px 4px 12px -4px rgba(79, 70, 229, 0.6)',
           },
           highlightStyle,

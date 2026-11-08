@@ -26,6 +26,7 @@ export function ToggleRow({ title, description, icon, value, onValueChange }: To
       accessibilityHint={description}
       onPress={() => onValueChange(!value)}
       pressedScale={0.98}
+      hoverScale={1}
       className={`flex-row items-center gap-3 rounded-2xl border p-3.5 ${
         value
           ? 'border-indigo-200 bg-indigo-50/60 dark:border-indigo-400/30 dark:bg-indigo-500/10'

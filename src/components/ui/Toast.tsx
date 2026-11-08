@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, type ComponentProps } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../../theme';
+import { PressableScale } from './PressableScale';
 
 type ToastProps = {
   /** Changes for every new toast (e.g. a timestamp); `null` hides it. */
@@ -57,13 +58,13 @@ export function Toast({
           <Ionicons name={icon} size={18} color={isDark ? '#4F46E5' : '#A5B4FC'} />
           <Text className="flex-1 text-sm text-white dark:text-slate-900">{message}</Text>
           {actionLabel && onAction && (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               onPress={onAction}
               className="rounded-lg px-3 py-1.5 hover:bg-white/10 active:bg-white/10 dark:hover:bg-slate-900/5 dark:active:bg-slate-900/5"
             >
               <Text className="text-sm font-semibold text-indigo-300 dark:text-indigo-600">{actionLabel}</Text>
-            </Pressable>
+            </PressableScale>
           )}
         </Animated.View>
       )}

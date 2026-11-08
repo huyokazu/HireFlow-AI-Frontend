@@ -29,6 +29,7 @@ export function CampaignCard({ campaign, onPress, enterDelay }: CampaignCardProp
       accessibilityLabel={t.campaignsPage.openBoardA11y(title)}
       onPress={onPress}
       pressedScale={0.98}
+      hoverScale={1.01}
       className="flex-1 rounded-3xl border border-white/80 bg-white/70 p-5 hover:border-indigo-200 dark:border-white/15 dark:bg-gray-900 dark:hover:border-indigo-400/40"
       style={{ boxShadow: palette.shadow.panel }}
     >
@@ -86,6 +87,7 @@ export function NewCampaignCard({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       onPress={onPress}
       pressedScale={0.98}
+      hoverScale={1.01}
       className="min-h-[200px] flex-1 items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 p-5 hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-white/15 dark:hover:border-indigo-400/40 dark:hover:bg-indigo-500/5"
     >
       <View className="h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-500/15">

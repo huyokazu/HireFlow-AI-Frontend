@@ -9,6 +9,7 @@ import type { Candidate } from '../../services/candidates';
 import { useAppTheme } from '../../theme';
 import { getInitials } from '../../utils/formatters';
 import { getMatchTier } from '../../utils/matchScore';
+import { AnimatedNumber } from '../ui/AnimatedNumber';
 import { SectionLabel } from '../ui/SectionLabel';
 
 // Rotated per card so neighbouring cards in the stack stay visually distinct.
@@ -71,7 +72,12 @@ export function CandidateCard({
             )}
           </View>
           <View className="flex-row items-baseline gap-1 rounded-full border border-white/30 bg-white/15 px-3 py-1">
-            <Text className="text-lg font-bold text-white">{candidate.matchScore}%</Text>
+            <AnimatedNumber
+              value={candidate.matchScore}
+              format={(value) => `${value}%`}
+              delay={300}
+              className="text-lg font-bold text-white"
+            />
             <Text className="text-[10px] font-semibold uppercase tracking-widest text-white/80">
               {t.candidate.match}
             </Text>

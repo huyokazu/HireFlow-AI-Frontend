@@ -18,7 +18,10 @@ type AnimatedNumberProps = {
   /** Counts up from zero on mount, then glides between later values. */
   countUpOnMount?: boolean;
   duration?: number;
+  /** Wait before the first roll, to line it up with an entrance. */
   delay?: number;
+  /** Wait before rolling to a later value, e.g. to cascade with other changes. */
+  updateDelay?: number;
 };
 
 /** A number that rolls smoothly to its new value instead of jumping. */
@@ -29,6 +32,7 @@ export function AnimatedNumber({
   countUpOnMount = true,
   duration = 900,
   delay = 0,
+  updateDelay = 0,
 }: AnimatedNumberProps) {
   const reduceMotion = useReducedMotion();
   const startValue = countUpOnMount && !reduceMotion ? 0 : value;
@@ -44,8 +48,8 @@ export function AnimatedNumber({
   );
 
   useEffect(() => {
-    // The delay lines the first roll up with an entrance; later changes respond at once.
-    const wait = isFirstRun.current ? delay : 0;
+    // The delay lines the first roll up with an entrance; later changes wait `updateDelay`.
+    const wait = isFirstRun.current ? delay : updateDelay;
     isFirstRun.current = false;
     animated.set(
       reduceMotion ? value : withDelay(wait, withTiming(value, { duration, easing: Easing.out(Easing.cubic) })),

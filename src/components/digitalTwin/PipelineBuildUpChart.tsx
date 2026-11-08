@@ -3,16 +3,20 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  FadeOut,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withDelay,
+  withSpring,
   withTiming,
+  ZoomIn,
 } from 'react-native-reanimated';
 
 import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { formatTick, niceStep } from '../../utils/charts';
+import { SPRINGS } from '../ui/motion';
 
 const PLOT_HEIGHT = 136;
 /** Column width: thin marks, well under the 24px cap, with a 2px gap between the pair. */
@@ -189,17 +193,21 @@ function Bar({
   const isFirstRun = useRef(true);
 
   useEffect(() => {
-    // Only the first grow-in is staggered; later changes respond at once.
-    const wait = isFirstRun.current ? enterDelay : 0;
+    const firstRun = isFirstRun.current;
     isFirstRun.current = false;
+    // The first grow-in is staggered; a new scenario springs each bar to its new height.
     height.set(
-      reduceMotion ? target : withDelay(wait, withTiming(target, { duration: 600, easing: Easing.out(Easing.cubic) })),
+      reduceMotion
+        ? target
+        : firstRun
+          ? withDelay(enterDelay, withTiming(target, { duration: 600, easing: Easing.out(Easing.cubic) }))
+          : withSpring(target, SPRINGS.value),
     );
     // `height` is a stable shared value; only a new target should restart the animation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, reduceMotion]);
 
-  const style = useAnimatedStyle(() => ({ height: height.get() }));
+  const style = useAnimatedStyle(() => ({ height: Math.max(0, height.get()) }));
 
   return (
     <Animated.View
@@ -211,6 +219,15 @@ function Bar({
 
 function HireFlag({ series }: { series: Series }) {
   const { isDark } = useAppTheme();
+  const reduceMotion = useReducedMotion();
   const color = isDark ? SERIES[series].flagColor.dark : SERIES[series].flagColor.light;
-  return <Ionicons name="flag" size={12} color={color} />;
+  // Mounted in the week of the first hire, so it pops in wherever a new scenario moves it.
+  return (
+    <Animated.View
+      entering={reduceMotion ? undefined : ZoomIn.springify().stiffness(320).damping(14)}
+      exiting={reduceMotion ? undefined : FadeOut.duration(150)}
+    >
+      <Ionicons name="flag" size={12} color={color} />
+    </Animated.View>
+  );
 }
