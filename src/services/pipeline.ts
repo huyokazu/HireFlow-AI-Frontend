@@ -1,4 +1,6 @@
+import { loadBootstrap } from './bootstrap';
 import { fetchMatchedCandidates, type Candidate } from './candidates';
+import { getRemote, mockDelay, readWithFallback } from './remote';
 
 export type PipelineStage = 'applied' | 'screening' | 'interview' | 'offer' | 'hired';
 
@@ -276,10 +278,12 @@ const OTHER_CANDIDATES: PipelineCandidate[] = [
  * Matching Agent's ranked CVs, the ones that need a human call, and everyone still in the running from
  * interview on. A campaign's other applicants (its `candidates` on the dashboard count them all) are
  * still with the agents, were screened out, or left.
- * Mock implementation: replace with a Supabase query on the applications the Orchestrator handed to HR
- * (e.g. `supabase.from('applications').select('*, candidate:candidates(*)')`).
  */
 export async function fetchPipeline(): Promise<PipelineCandidate[]> {
+  return readWithFallback('pipeline', async (remote) => (await loadBootstrap(remote)).pipeline, mockPipeline);
+}
+
+async function mockPipeline(): Promise<PipelineCandidate[]> {
   const matched = await fetchMatchedCandidates(FEATURED_CAMPAIGN_ID);
   const inScreening: PipelineCandidate[] = matched.map((candidate) => ({
     ...candidate,
@@ -291,10 +295,15 @@ export async function fetchPipeline(): Promise<PipelineCandidate[]> {
 }
 
 /**
- * Saves a stage change. The board updates optimistically, so this resolves without a value.
- * Mock implementation: replace with an update on the applications table; the Orchestrator Agent
- * listens for stage changes and hands the candidate to the next agent.
+ * Saves a stage change. The board updates optimistically, so this resolves without a value and
+ * rejects when the change was not saved. The Orchestrator then hands the candidate to the next agent
+ * (on the server, e.g. the Operations Agent books an interview), and that shows up over Realtime.
  */
-export async function saveCandidateStage(_candidateId: string, _stage: PipelineStage): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+export async function saveCandidateStage(candidateId: string, stage: PipelineStage, campaignId?: string): Promise<void> {
+  const remote = getRemote();
+  if (!remote) return mockDelay(300);
+  await remote.request<PipelineCandidate>(`/api/pipeline/${encodeURIComponent(candidateId)}`, {
+    method: 'PATCH',
+    body: { stage, campaignId },
+  });
 }

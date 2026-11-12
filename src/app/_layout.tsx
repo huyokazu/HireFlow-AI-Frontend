@@ -9,13 +9,17 @@ import { Appearance, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AppShell } from '../components/layout/AppShell';
 import { LanguageProvider } from '../i18n';
-import { WorkspaceProvider } from '../state/WorkspaceProvider';
+import { registerApiRemote } from '../lib/api';
+import { AuthProvider } from '../state/AuthProvider';
 import { useAppTheme } from '../theme';
 
+// With a backend configured, the services read from the API from the first request on.
+registerApiRemote();
+
 /**
- * Root layout: app-wide providers, then the shell (sidebar, backdrop) around the current route.
+ * Root layout: app-wide providers around the current route. Signed-in pages get the workspace and
+ * the shell (sidebar, backdrop) from the `(app)` group's layout; the sign-in page stands alone.
  * `Slot` keeps a stack history, so the Android back button and browser back both step back
  * through visited screens.
  */
@@ -31,12 +35,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <LanguageProvider>
-          <WorkspaceProvider>
-            <AppShell>
-              <Slot />
-            </AppShell>
+          <AuthProvider>
+            <Slot />
             <ThemedStatusBar />
-          </WorkspaceProvider>
+          </AuthProvider>
         </LanguageProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

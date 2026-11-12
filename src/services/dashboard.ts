@@ -1,4 +1,6 @@
 import type { Localized } from '../i18n/types';
+import { loadBootstrap } from './bootstrap';
+import { readWithFallback } from './remote';
 
 export type CampaignHealth = 'on_track' | 'at_risk' | 'blocked';
 
@@ -108,10 +110,7 @@ const MOCK_SUMMARY: DashboardSummary = {
   ],
 };
 
-/**
- * Headline numbers and active campaigns for the dashboard.
- * Mock implementation: replace with a Supabase view or RPC that aggregates the campaigns table.
- */
+/** Headline numbers and active campaigns for the dashboard. */
 export async function fetchDashboardSummary(): Promise<DashboardSummary> {
-  return MOCK_SUMMARY;
+  return readWithFallback('dashboard', async (remote) => (await loadBootstrap(remote)).summary, async () => MOCK_SUMMARY);
 }

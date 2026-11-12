@@ -1,4 +1,4 @@
-import { DigitalTwinScreen } from '../screens/DigitalTwinScreen';
+import { DigitalTwinScreen } from '../../screens/DigitalTwinScreen';
 
 export default function DigitalTwinRoute() {
   return <DigitalTwinScreen />;

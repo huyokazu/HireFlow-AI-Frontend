@@ -1,4 +1,4 @@
-import { CampaignCreationScreen } from '../../screens/CampaignCreationScreen';
+import { CampaignCreationScreen } from '../../../screens/CampaignCreationScreen';
 
 export default function NewCampaignRoute() {
   return <CampaignCreationScreen />;
