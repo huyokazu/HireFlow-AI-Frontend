@@ -1,0 +1,18 @@
+{
+  "name": "hireflow-ai-prompts",
+  "version": "1.0.0",
+  "description": "Prompt, JSON Schema và chunking cho các AI Agent của HireFlow AI (Gemini API)",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/offline.test.js",
+    "tokens": "node scripts/token-report.js",
+    "test:live": "node scripts/test-live.js",
+    "demo": "node scripts/demo-self-healing.js",
+    "extract": "node scripts/extract-cv.js",
+    "precompute": "node scripts/precompute-self-healing.js"
+  }
+}

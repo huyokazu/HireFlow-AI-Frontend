@@ -1,0 +1,127 @@
+{
+  "generatedAt": "2026-11-12T18:01:41.211Z",
+  "model": "gemini-3.1-flash-lite",
+  "result": {
+    "status": "bottleneck",
+    "diagnosis": "Yêu cầu kinh nghiệm 7 năm quá cao so với mặt bằng kỹ năng và phân khúc lương hiện tại.",
+    "confidence": 85,
+    "root_causes": [
+      {
+        "label": "Yêu cầu kinh nghiệm cao",
+        "detail": "Yêu cầu 7 năm kinh nghiệm làm giảm đáng kể lượng ứng viên tiềm năng phù hợp.",
+        "impact": "high"
+      },
+      {
+        "label": "Độ phức tạp kỹ năng",
+        "detail": "Sự kết hợp giữa 7 kỹ năng chuyên sâu khiến tiêu chuẩn chọn lọc trở nên khắt khe.",
+        "impact": "medium"
+      }
+    ],
+    "proposed_action": "Hạ yêu cầu kinh nghiệm xuống 5 năm HOẶC tăng ngân sách lương lên 120-130 nghìn USD/năm.",
+    "suggested_fixes": [
+      {
+        "action_label": "Giảm kinh nghiệm xuống 5 năm",
+        "description": "Điều chỉnh yêu cầu kinh nghiệm từ 7 năm xuống 5 năm để mở rộng nguồn ứng viên.",
+        "expected_impact": "Tăng tỷ lệ CV phù hợp",
+        "recommended": true
+      },
+      {
+        "action_label": "Tăng ngân sách lương",
+        "description": "Điều chỉnh dải lương từ 90-110 lên 110-130 nghìn USD/năm để thu hút nhân tài cấp cao.",
+        "expected_impact": "Thu hút ứng viên trình độ cao",
+        "recommended": false
+      }
+    ],
+    "updated_jd_draft": "Tuyển dụng Kỹ sư Frontend (Senior). Yêu cầu: 5 năm kinh nghiệm, thành thạo React, TypeScript, Next.js, GraphQL, Testing Library, Web Performance và Accessibility. Làm việc theo hình thức Hybrid tại TP.HCM. Phúc lợi: 90-110 nghìn USD/năm.",
+    "requires_hr_approval": true
+  },
+  "campaignId": "senior-frontend-engineer",
+  "note": "Trước khi insert: expectedLift của mỗi fix có patch = matchRateLift(setup, fix.patch) (src/services/digitalTwin.ts). Xem ai/docs/backend-integration.md mục 5.3.",
+  "severity": "critical",
+  "content": {
+    "title": {
+      "en": "Candidate match rate is 18 points below target",
+      "vi": "Tỷ lệ ứng viên phù hợp thấp hơn mục tiêu 18 điểm"
+    },
+    "campaignName": {
+      "en": "Senior Frontend Engineer",
+      "vi": "Kỹ sư Frontend cấp cao"
+    },
+    "metric": {
+      "label": {
+        "en": "Candidate match rate",
+        "vi": "Tỷ lệ ứng viên phù hợp"
+      },
+      "current": 42,
+      "target": 60
+    },
+    "rootCause": {
+      "summary": {
+        "en": "Yêu cầu kinh nghiệm 7 năm quá cao so với mặt bằng kỹ năng và phân khúc lương hiện tại.",
+        "vi": "Yêu cầu kinh nghiệm 7 năm quá cao so với mặt bằng kỹ năng và phân khúc lương hiện tại."
+      },
+      "confidence": 85,
+      "factors": [
+        {
+          "id": "ai_factor_1",
+          "label": {
+            "en": "Yêu cầu kinh nghiệm cao",
+            "vi": "Yêu cầu kinh nghiệm cao"
+          },
+          "detail": {
+            "en": "Yêu cầu 7 năm kinh nghiệm làm giảm đáng kể lượng ứng viên tiềm năng phù hợp.",
+            "vi": "Yêu cầu 7 năm kinh nghiệm làm giảm đáng kể lượng ứng viên tiềm năng phù hợp."
+          },
+          "impact": "high"
+        },
+        {
+          "id": "ai_factor_2",
+          "label": {
+            "en": "Độ phức tạp kỹ năng",
+            "vi": "Độ phức tạp kỹ năng"
+          },
+          "detail": {
+            "en": "Sự kết hợp giữa 7 kỹ năng chuyên sâu khiến tiêu chuẩn chọn lọc trở nên khắt khe.",
+            "vi": "Sự kết hợp giữa 7 kỹ năng chuyên sâu khiến tiêu chuẩn chọn lọc trở nên khắt khe."
+          },
+          "impact": "medium"
+        }
+      ]
+    },
+    "suggestedFixes": [
+      {
+        "id": "ai_fix_1",
+        "actionLabel": {
+          "en": "Giảm kinh nghiệm xuống 5 năm",
+          "vi": "Giảm kinh nghiệm xuống 5 năm"
+        },
+        "description": {
+          "en": "Điều chỉnh yêu cầu kinh nghiệm từ 7 năm xuống 5 năm để mở rộng nguồn ứng viên.",
+          "vi": "Điều chỉnh yêu cầu kinh nghiệm từ 7 năm xuống 5 năm để mở rộng nguồn ứng viên."
+        },
+        "expectedLift": 0,
+        "recommended": true,
+        "patch": {
+          "minExperience": 5
+        }
+      },
+      {
+        "id": "ai_fix_2",
+        "actionLabel": {
+          "en": "Tăng ngân sách lương",
+          "vi": "Tăng ngân sách lương"
+        },
+        "description": {
+          "en": "Điều chỉnh dải lương từ 90-110 lên 110-130 nghìn USD/năm để thu hút nhân tài cấp cao.",
+          "vi": "Điều chỉnh dải lương từ 90-110 lên 110-130 nghìn USD/năm để thu hút nhân tài cấp cao."
+        },
+        "expectedLift": 0,
+        "recommended": false,
+        "patch": {
+          "salaryMin": 110,
+          "salaryMax": 130
+        }
+      }
+    ]
+  }
+}

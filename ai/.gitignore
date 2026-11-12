@@ -1,0 +1,7 @@
+# KHÔNG BAO GIỜ đưa API Key lên Github
+.env
+.env.*
+!.env.example
+node_modules/
+# Kết quả test thật (sinh lại bằng npm run test:live)
+test-results/
