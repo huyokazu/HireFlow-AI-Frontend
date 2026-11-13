@@ -4,6 +4,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useI18n, type Localized } from '../../i18n';
+import { useAuth } from '../../state/AuthProvider';
 import { useWorkspace } from '../../state/WorkspaceProvider';
 import { BREAKPOINTS } from '../ui/motion';
 import { BOTTOM_BAR_HEIGHT, BOTTOM_BAR_MARGIN, BottomTabBar } from './BottomTabBar';
@@ -17,7 +18,7 @@ import { ThemedBackdrop } from './ThemedBackdrop';
 const SIDEBAR_WIDTH = 264;
 /** Widest the page column grows (see `ScreenContainer`). */
 const MAX_CONTENT_WIDTH = 1280;
-// Placeholder until Supabase Auth provides the signed-in user.
+// Shown in mock mode, where nobody signs in.
 const CURRENT_USER: { name: string; title: Localized } = {
   name: 'Jordan Lee',
   title: { en: 'Head of Talent', vi: 'Trưởng bộ phận Tuyển dụng' },
@@ -74,6 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { t, pick } = useI18n();
   const { pipeline, openAlerts, agentsOnline } = useWorkspace();
+  const { me } = useAuth();
   // Which layout's menu is open. Menus belong to one layout, so rotating a tablet or resizing a
   // window past a breakpoint leaves the other layout's menu closed.
   const [menuOpenOn, setMenuOpenOn] = useState<Device | null>(null);
@@ -122,7 +124,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     activeKey,
     onNavigate: navigate,
     agentsOnline,
-    user: { name: CURRENT_USER.name, title: pick(CURRENT_USER.title) },
+    user: me
+      ? { name: me.profile.displayName || me.profile.email, title: me.profile.email }
+      : { name: CURRENT_USER.name, title: pick(CURRENT_USER.title) },
     badges: {
       candidates: { count: onBoard, a11yLabel: t.nav.candidatesA11y(onBoard) },
       'self-healing': { count: openAlerts.length, tone: 'alert' as const },

@@ -73,7 +73,9 @@ export function CandidateReviewScreen() {
       <SelfHealingAlertPopup
         alert={openAlert}
         onClose={() => setOpenAlert(null)}
-        onApproveFix={(alert: BottleneckAlert, fix: SuggestedFix) => approveSuggestedFix(alert.id, fix.id)}
+        onApproveFix={async (alert: BottleneckAlert, fix: SuggestedFix) => {
+          await approveSuggestedFix(alert.id, fix.id);
+        }}
       />
     </View>
   );

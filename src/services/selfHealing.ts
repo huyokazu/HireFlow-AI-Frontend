@@ -1,6 +1,9 @@
 import type { Localized } from '../i18n/types';
+import type { AgentEvent } from './agents';
+import { loadBootstrap } from './bootstrap';
 import { fetchCampaignSetups, type CampaignDraft } from './campaigns';
 import { matchRateLift } from './digitalTwin';
+import { getRemote, mockDelay, readWithFallback } from './remote';
 
 export type AlertSeverity = 'critical' | 'warning';
 
@@ -50,6 +53,14 @@ export type BottleneckAlert = {
     factors: RootCauseFactor[];
   };
   suggestedFixes: SuggestedFix[];
+};
+
+/** HR's decision on an alert, saved on the server so approvals and dismissals survive a reload. */
+export type AlertDecision = {
+  status: 'open' | 'approved' | 'dismissed';
+  approvedFixId: string | null;
+  /** ISO timestamp of the approval or dismissal. */
+  decidedAt: string | null;
 };
 
 export type HealingOutcome = 'in_progress' | 'resolved' | 'dismissed';
@@ -390,12 +401,15 @@ const MOCK_HISTORY: HealingRecord[] = [
 const SEVERITY_ORDER: Record<AlertSeverity, number> = { critical: 0, warning: 1 };
 
 /**
- * Open alerts raised by the Self-Healing monitor across all campaigns: critical first, then the
- * most recent.
- * Mock implementation: replace with a Supabase query, or subscribe to inserts on the alerts
- * table with Realtime so new bottlenecks pop up as soon as the Orchestrator Agent detects them.
+ * Alerts raised by the Self-Healing monitor across all campaigns: critical first, then the most
+ * recent. From the API they also carry HR's decision: open ones, plus those approved or dismissed in
+ * the last 30 days. The mock has open ones only.
  */
-export async function fetchActiveBottleneckAlerts(): Promise<BottleneckAlert[]> {
+export async function fetchActiveBottleneckAlerts(): Promise<(BottleneckAlert & Partial<AlertDecision>)[]> {
+  return readWithFallback('alerts', async (remote) => (await loadBootstrap(remote)).alerts, mockAlerts);
+}
+
+async function mockAlerts(): Promise<BottleneckAlert[]> {
   const setups = await fetchCampaignSetups();
   return MOCK_ALERTS.map((alert) => withForecastLifts(alert, setups[alert.campaignId])).sort(
     (a, b) =>
@@ -416,17 +430,47 @@ function withForecastLifts(alert: MockAlert, setup: CampaignDraft | undefined): 
 }
 
 /**
- * Fixes applied and alerts dismissed over the last 30 days, newest first.
- * Mock implementation: replace with a query on the Orchestrator's action log.
+ * Fixes applied and alerts dismissed over the last 30 days, newest first. From the API, only the
+ * records whose alert is not among the alerts above.
  */
 export async function fetchHealingHistory(): Promise<HealingRecord[]> {
-  return MOCK_HISTORY;
+  return readWithFallback(
+    'healing history',
+    async (remote) => (await loadBootstrap(remote)).history,
+    async () => MOCK_HISTORY,
+  );
 }
 
 /**
- * Tells the Orchestrator Agent to apply the fix HR approved.
- * Mock implementation: replace with a call to the Orchestrator Agent API.
+ * Tells the Orchestrator Agent to apply the fix HR approved; it also merges the fix's change into the
+ * campaign's setup. Resolves with what it logged (`null` in mock mode, where the app logs it).
  */
-export async function approveSuggestedFix(_alertId: string, _fixId: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 1200));
+export async function approveSuggestedFix(alertId: string, fixId: string): Promise<AgentEvent[] | null> {
+  const remote = getRemote();
+  if (!remote) {
+    await mockDelay(1200);
+    return null;
+  }
+  const { events } = await remote.request<{ events: AgentEvent[] }>(
+    `/api/self-healing/alerts/${encodeURIComponent(alertId)}/approve`,
+    { method: 'POST', body: { fixId } },
+  );
+  return events;
+}
+
+/**
+ * Sets an open alert aside without a fix. Only the API keeps it; the mock forgets it on reload.
+ * Closing an approved alert is not a dismissal, so it is never sent here.
+ */
+export async function dismissBottleneckAlert(alertId: string): Promise<void> {
+  const remote = getRemote();
+  if (!remote) return;
+  await remote.request(`/api/self-healing/alerts/${encodeURIComponent(alertId)}/dismiss`, { method: 'POST' });
+}
+
+/** Brings back an alert that was dismissed without a fix. */
+export async function reopenBottleneckAlert(alertId: string): Promise<void> {
+  const remote = getRemote();
+  if (!remote) return;
+  await remote.request(`/api/self-healing/alerts/${encodeURIComponent(alertId)}/reopen`, { method: 'POST' });
 }

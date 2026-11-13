@@ -1,7 +1,9 @@
 import type { Localized } from '../i18n/types';
+import { loadBootstrap } from './bootstrap';
 import type { CampaignDraft, SourcingChannel } from './campaigns';
 import type { CampaignSummary } from './dashboard';
 import type { PipelineCandidate, PipelineStage } from './pipeline';
+import { getRemote, mockDelay, readWithFallback } from './remote';
 import { fetchActiveBottleneckAlerts } from './selfHealing';
 
 /** The specialist agents the Orchestrator runs. HR can pause any of them. */
@@ -31,14 +33,26 @@ export type PausedAgents = Record<AgentKey, boolean>;
 
 type EventBase = { id: string; at: string; campaignId?: string };
 
+/**
+ * What the Operations Agent attaches when it really books or emails through Google:
+ * the action it executed, the interview slot and Meet link, and whether it ran in simulated mode.
+ */
+export type OperationsDetails = {
+  actionId?: string;
+  startsAt?: string;
+  meetLink?: string;
+  simulated?: boolean;
+};
+
 /** One thing an agent (or the Orchestrator) did. The dictionary turns it into a sentence. */
 export type AgentEvent = EventBase &
   (
     | { kind: 'cvsImported'; actor: 'sourcing'; count: number; channel: SourcingChannel }
     | { kind: 'cvsScored'; actor: 'matching'; count: number }
     | { kind: 'shortlistHandoff'; actor: 'orchestrator'; count: number }
-    | { kind: 'interviewBooked'; actor: 'scheduling'; candidateId: string; candidate: string }
-    | { kind: 'offerDrafted'; actor: 'offer'; candidateId: string; candidate: string }
+    | ({ kind: 'interviewBooked'; actor: 'scheduling'; candidateId: string; candidate: string } & OperationsDetails)
+    | ({ kind: 'offerDrafted'; actor: 'offer'; candidateId: string; candidate: string } & OperationsDetails)
+    | ({ kind: 'offerSent'; actor: 'offer'; candidateId: string; candidate: string } & OperationsDetails)
     | { kind: 'healthCheck'; actor: 'selfHealing'; campaigns: number }
     | { kind: 'bottleneckFlagged'; actor: 'selfHealing'; issue: Localized }
     | { kind: 'fixApplied'; actor: 'orchestrator'; fix: Localized }
@@ -142,6 +156,9 @@ export function applyAgentEvent(stats: AgentStatsByKey, event: AgentEvent): Agen
       return adjust(stats, 'scheduling', { done: 1, queued: -1, at: event.at });
     case 'offerDrafted':
       return adjust(stats, 'offer', { done: 1, queued: -1, at: event.at });
+    // The draft was already counted; sending it is the same item.
+    case 'offerSent':
+      return adjust(stats, 'offer', { at: event.at });
     case 'healthCheck':
       return adjust(stats, 'selfHealing', { done: 1, at: event.at });
     default:
@@ -169,10 +186,14 @@ function adjust(
 const MINUTE = 60 * 1000;
 
 /**
- * Today's numbers for every agent and what they did recently.
- * Mock implementation: replace with selects on the Orchestrator's agent_stats and agent_events tables.
+ * Today's numbers for every agent and what they did recently. From the API it also says which
+ * agents HR paused, so a pause survives a reload.
  */
-export async function fetchAgentWorkspace(): Promise<AgentWorkspace> {
+export async function fetchAgentWorkspace(): Promise<AgentWorkspace & { paused?: PausedAgents }> {
+  return readWithFallback('agents', async (remote) => (await loadBootstrap(remote)).agents, mockAgentWorkspace);
+}
+
+async function mockAgentWorkspace(): Promise<AgentWorkspace> {
   const alerts = await fetchActiveBottleneckAlerts();
   const now = Date.now();
   const ago = (minutes: number) => new Date(now - minutes * MINUTE);
@@ -246,10 +267,19 @@ export async function fetchAgentWorkspace(): Promise<AgentWorkspace> {
 
 /**
  * Pauses or resumes agents for every campaign. A paused agent's work waits in its queue.
- * Mock implementation: replace with an Orchestrator API call.
+ * Resolves with what the Orchestrator logged (`null` in mock mode, where the app logs it).
  */
-export async function updatePausedAgents(_changes: Partial<PausedAgents>): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 400));
+export async function updatePausedAgents(changes: Partial<PausedAgents>): Promise<AgentEvent[] | null> {
+  const remote = getRemote();
+  if (!remote) {
+    await mockDelay(400);
+    return null;
+  }
+  const { events } = await remote.request<{ paused: PausedAgents; events: AgentEvent[] }>('/api/agents/paused', {
+    method: 'PATCH',
+    body: { changes },
+  });
+  return events;
 }
 
 const STREAM_MIN_DELAY_MS = 5000;
@@ -259,8 +289,8 @@ const SCORED_PER_SHORTLIST = 3;
 
 /**
  * Calls `onEvent` with each thing the agents do, as they do it, until the returned function is called.
- * Mock implementation: invents a plausible next step every few seconds from the current numbers;
- * replace with a Supabase Realtime subscription to the agent_events table.
+ * Mock mode only: invents a plausible next step every few seconds from the current numbers. With the
+ * API, real events arrive over Realtime instead (`subscribeToWorkspace`).
  */
 export function subscribeToAgentActivity(
   getContext: () => ActivityContext | null,

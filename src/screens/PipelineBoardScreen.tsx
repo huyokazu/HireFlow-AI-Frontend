@@ -23,7 +23,8 @@ import { useAppTheme } from '../theme';
 /** How long a just-moved card keeps its "landing" entrance, in case it re-mounts. */
 const LANDING_MS = 900;
 
-type MoveToast = { key: number; move: PipelineMove; name: string };
+/** A move that can be undone, or one that couldn't be saved (and went back). */
+type MoveToast = { key: number; name: string } & ({ move: PipelineMove; failed?: false } | { move?: undefined; failed: true });
 
 /** Key of the "All campaigns" filter chip. */
 const ALL_CHIP = '__all__';
@@ -65,7 +66,7 @@ export function PipelineBoardScreen() {
   const handleMove = useCallback(
     (candidateId: string, stage: PipelineStage) => {
       const name = pipeline?.find((candidate) => candidate.id === candidateId)?.name ?? '';
-      const move = moveCandidate(candidateId, stage);
+      const move = moveCandidate(candidateId, stage, () => setToast({ key: Date.now(), name, failed: true }));
       if (!move) return;
       setLandedId(candidateId);
       setToast({ key: Date.now(), move, name });
@@ -74,7 +75,7 @@ export function PipelineBoardScreen() {
   );
 
   const handleUndo = useCallback(() => {
-    if (!toast) return;
+    if (!toast || toast.failed) return;
     undoMove(toast.move);
     setLandedId(toast.move.candidateId);
     setToast(null);
@@ -174,10 +175,10 @@ export function PipelineBoardScreen() {
 
       <Toast
         toastKey={toast?.key ?? null}
-        message={toast ? t.board.moved[toast.move.to](toast.name) : ''}
-        icon={toast ? STAGE_STYLES[toast.move.to].icon : undefined}
-        actionLabel={t.board.undo}
-        onAction={handleUndo}
+        message={!toast ? '' : toast.failed ? t.board.moveFailed(toast.name) : t.board.moved[toast.move.to](toast.name)}
+        icon={!toast ? undefined : toast.failed ? 'cloud-offline-outline' : STAGE_STYLES[toast.move.to].icon}
+        actionLabel={toast?.failed ? undefined : t.board.undo}
+        onAction={toast?.failed ? undefined : handleUndo}
         onDismiss={dismissToast}
       />
 

@@ -1,4 +1,6 @@
 import type { Localized } from '../i18n/types';
+import { loadBootstrap } from './bootstrap';
+import { readWithFallback } from './remote';
 
 export type Candidate = {
   id: string;
@@ -95,10 +97,17 @@ const MOCK_CANDIDATES: Candidate[] = [
 ];
 
 /**
- * Returns the candidates the Matching Agent ranked for a campaign, best match first.
- * Mock implementation: replace the body with a Supabase query
- * (e.g. `supabase.from('campaign_matches').select('*').eq('campaign_id', campaignId)`).
+ * Returns the candidates the Matching Agent ranked for a campaign, best match first. The featured
+ * campaign's come with the app's first request; any other campaign's are fetched on their own.
  */
-export async function fetchMatchedCandidates(_campaignId: string): Promise<Candidate[]> {
-  return [...MOCK_CANDIDATES].sort((a, b) => b.matchScore - a.matchScore);
+export async function fetchMatchedCandidates(campaignId: string): Promise<Candidate[]> {
+  return readWithFallback(
+    'matched candidates',
+    async (remote) => {
+      const bootstrap = await loadBootstrap(remote);
+      if (bootstrap.featuredCampaignId === campaignId) return bootstrap.matchedCandidates;
+      return remote.request<Candidate[]>(`/api/campaigns/${encodeURIComponent(campaignId)}/candidates`);
+    },
+    async () => [...MOCK_CANDIDATES].sort((a, b) => b.matchScore - a.matchScore),
+  );
 }

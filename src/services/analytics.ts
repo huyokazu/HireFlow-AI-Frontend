@@ -1,6 +1,7 @@
 import type { SourcingChannel } from './campaigns';
 import { fetchDashboardSummary, type CampaignSummary } from './dashboard';
 import { PIPELINE_STAGES, type PipelineCandidate, type PipelineStage } from './pipeline';
+import { readWithFallback } from './remote';
 
 /** Hiring results for one calendar month. */
 export type HiringMonth = {
@@ -126,12 +127,12 @@ const HIRES_PREVIOUS_PERIOD = 15;
 /** Recruiter hours the agents saved five weeks ago through last week. */
 const AGENT_HOURS_BY_WEEK = [29, 33, 37, 41, 44];
 
-/**
- * Hiring results over time and per live campaign, for the Analytics page.
- * Mock implementation: replace with Supabase views over the applications and hires tables, and
- * the Orchestrator's weekly agent_stats rollup.
- */
+/** Hiring results over time and per live campaign, for the Analytics page. */
 export async function fetchHiringAnalytics(): Promise<HiringAnalytics> {
+  return readWithFallback('analytics', (remote) => remote.request<HiringAnalytics>('/api/analytics'), mockAnalytics);
+}
+
+async function mockAnalytics(): Promise<HiringAnalytics> {
   // This month's and last month's time to hire are the dashboard's, so the two pages agree.
   const summary = await fetchDashboardSummary();
   const timeToHire = [

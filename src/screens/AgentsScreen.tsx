@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ActivityFeedPanel } from '../components/agents/ActivityFeedPanel';
 import { AgentCard } from '../components/agents/AgentCard';
+import { OperationsPanel } from '../components/agents/OperationsPanel';
 import { OrchestratorPanel } from '../components/agents/OrchestratorPanel';
 import { SummaryStats, type SummaryStat } from '../components/dashboard/SummaryStats';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -22,6 +23,7 @@ import {
   type AgentStatsByKey,
   type PausedAgents,
 } from '../services/agents';
+import { useAuth } from '../state/AuthProvider';
 import { useWorkspace, type AgentBaseline } from '../state/WorkspaceProvider';
 import { useAppTheme } from '../theme';
 
@@ -31,6 +33,7 @@ const ORCHESTRATOR_DELAY = 360;
 const CARDS_DELAY = 440;
 const CARD_STAGGER_MS = STAGGER_MS;
 const FEED_DELAY = 520;
+const OPERATIONS_DELAY = 600;
 /** How often relative times ("2 min ago") refresh. */
 const CLOCK_TICK_MS = 30_000;
 
@@ -51,7 +54,9 @@ export function AgentsScreen() {
   const { t, pick } = useI18n();
   const { palette } = useAppTheme();
   const router = useRouter();
+  const { status: authStatus } = useAuth();
   const {
+    workspaceId,
     summary,
     campaignSetups,
     openAlerts,
@@ -167,6 +172,13 @@ export function AgentsScreen() {
                 />
               </Animated.View>
             </View>
+
+            {/* Real interviews and emails need the API; mock mode has none to show. */}
+            {authStatus !== 'disabled' && (
+              <Animated.View entering={FadeInDown.delay(OPERATIONS_DELAY).duration(500)} className="mt-6">
+                <OperationsPanel workspaceId={workspaceId} now={now} />
+              </Animated.View>
+            )}
           </>
         )}
       </ScreenContainer>

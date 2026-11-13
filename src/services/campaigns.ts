@@ -1,5 +1,8 @@
 import type { Localized } from '../i18n/types';
+import type { AgentEvent } from './agents';
+import { loadBootstrap } from './bootstrap';
 import type { CampaignSummary } from './dashboard';
+import { getRemote, mockDelay, readWithFallback } from './remote';
 
 export type DepartmentKey = 'engineering' | 'design' | 'data' | 'product' | 'operations' | 'sales';
 export type WorkMode = 'onsite' | 'hybrid' | 'remote';
@@ -145,12 +148,27 @@ export function suggestSkills(title: string, department: DepartmentKey | null, e
   return suggestions.slice(0, 6);
 }
 
-/**
- * Creates the campaign and hands it to the Orchestrator Agent, which starts the enabled agents.
- * Mock implementation: replace with an insert into the campaigns table plus an Orchestrator API call.
- */
+/** A new campaign, and what the Orchestrator logged about it (`null` in mock mode, where the app logs it). */
+export type LaunchResult = { campaign: CampaignSummary; events: AgentEvent[] | null };
+
+/** Creates the campaign and hands it to the Orchestrator Agent, which starts the enabled agents. */
 export async function launchCampaign(draft: CampaignDraft): Promise<CampaignSummary> {
-  await new Promise((resolve) => setTimeout(resolve, 1400));
+  return (await launchCampaignWithEvents(draft)).campaign;
+}
+
+export async function launchCampaignWithEvents(draft: CampaignDraft): Promise<LaunchResult> {
+  const remote = getRemote();
+  if (remote) {
+    return remote.request<{ campaign: CampaignSummary; events: AgentEvent[] }>('/api/campaigns', {
+      method: 'POST',
+      body: { draft },
+    });
+  }
+  return { campaign: await mockLaunch(draft), events: null };
+}
+
+async function mockLaunch(draft: CampaignDraft): Promise<CampaignSummary> {
+  await mockDelay(1400);
   const title = draft.title.trim();
   return {
     id: `${slugify(title) || 'campaign'}-${Date.now().toString(36)}`,
@@ -266,21 +284,30 @@ const MOCK_SETUPS: Record<string, CampaignDraft> = {
   },
 };
 
-/**
- * The current setup of every live campaign, keyed by campaign id.
- * Mock implementation: replace with a select on the campaigns table.
- */
+/** The current setup of every live campaign, keyed by campaign id. */
 export async function fetchCampaignSetups(): Promise<Record<string, CampaignDraft>> {
-  return MOCK_SETUPS;
+  return readWithFallback(
+    'campaign setups',
+    async (remote) => (await loadBootstrap(remote)).campaignSetups,
+    async () => MOCK_SETUPS,
+  );
 }
 
 /**
  * Saves a new setup for a live campaign. The Orchestrator Agent then updates the job posts,
- * channels and agents to match.
- * Mock implementation: replace with an update on the campaigns table plus an Orchestrator API call.
+ * channels and agents to match. Resolves with what it logged (`null` in mock mode).
  */
-export async function updateCampaignSetup(_campaignId: string, _setup: CampaignDraft): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 900));
+export async function updateCampaignSetup(campaignId: string, setup: CampaignDraft): Promise<AgentEvent[] | null> {
+  const remote = getRemote();
+  if (!remote) {
+    await mockDelay(900);
+    return null;
+  }
+  const { events } = await remote.request<{ events: AgentEvent[] }>(
+    `/api/campaigns/${encodeURIComponent(campaignId)}/setup`,
+    { method: 'PUT', body: { setup } },
+  );
+  return events;
 }
 
 function slugify(value: string): string {
