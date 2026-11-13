@@ -1,0 +1,33 @@
+{
+  "status": "bottleneck",
+  "diagnosis": "Mức lương thấp so với yêu cầu 3 năm kinh nghiệm",
+  "confidence": 85,
+  "root_causes": [
+    {
+      "label": "Lương thấp so với yêu cầu",
+      "detail": "Lương 10 triệu khó thu hút ứng viên đã có 3 năm kinh nghiệm.",
+      "impact": "high"
+    },
+    {
+      "label": "Yêu cầu kinh nghiệm cao",
+      "detail": "Mốc 3 năm kinh nghiệm thu hẹp đáng kể số ứng viên có thể ứng tuyển.",
+      "impact": "medium"
+    }
+  ],
+  "proposed_action": "Giảm yêu cầu kinh nghiệm xuống 1 năm HOẶC tăng lương lên 12 triệu VND/tháng",
+  "suggested_fixes": [
+    {
+      "action_label": "Giảm yêu cầu kinh nghiệm",
+      "description": "Hạ yêu cầu từ 3 năm xuống 1 năm kinh nghiệm, giữ lương 10 triệu.",
+      "expected_impact": "Mở rộng đáng kể nguồn ứng viên",
+      "recommended": true
+    },
+    {
+      "action_label": "Tăng mức lương",
+      "description": "Tăng lương từ 10 triệu lên 12 triệu, giữ yêu cầu 3 năm kinh nghiệm.",
+      "expected_impact": "Thu hút ứng viên có kinh nghiệm",
+      "recommended": false
+    }
+  ],
+  "updated_jd_draft": "Tuyển Chuyên viên Marketing tại Hà Nội. Công việc: chạy Facebook Ads, Google Ads, tối ưu SEO, viết content. Yêu cầu: từ 1 năm kinh nghiệm Marketing, tốt nghiệp Đại học. Lương: 10 triệu VND/tháng, thưởng theo hiệu quả."
+}

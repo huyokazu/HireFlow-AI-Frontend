@@ -1,0 +1,166 @@
+{
+  "generatedAt": "2026-11-12T17:24:02.729Z",
+  "model": "gemini-3.1-flash-lite",
+  "result": {
+    "status": "bottleneck",
+    "diagnosis": "Mức lương 10 triệu VND/tháng thấp so với yêu cầu 3 năm kinh nghiệm Marketing.",
+    "confidence": 90,
+    "root_causes": [
+      {
+        "label": "Lương không cạnh tranh",
+        "detail": "Mức lương 10 triệu đồng hiện tại không thu hút được ứng viên có 3 năm kinh nghiệm trên thị trường.",
+        "impact": "high"
+      },
+      {
+        "label": "Yêu cầu kinh nghiệm cao",
+        "detail": "Yêu cầu 3 năm kinh nghiệm trong khi mức đãi ngộ tương ứng với vị trí sơ cấp hoặc mới ra trường.",
+        "impact": "medium"
+      }
+    ],
+    "proposed_action": "Hạ yêu cầu kinh nghiệm xuống 1 năm HOẶC tăng mức lương lên 12 triệu VND/tháng.",
+    "suggested_fixes": [
+      {
+        "action_label": "Hạ yêu cầu kinh nghiệm",
+        "description": "Điều chỉnh yêu cầu kinh nghiệm từ 3 năm xuống còn 1 năm để mở rộng tệp ứng viên tiềm năng.",
+        "expected_impact": "Tăng số lượng hồ sơ nhận được",
+        "recommended": true
+      },
+      {
+        "action_label": "Tăng lương tuyển dụng",
+        "description": "Điều chỉnh mức lương từ 10 triệu VND lên 12 triệu VND để thu hút ứng viên có kinh nghiệm.",
+        "expected_impact": "Cải thiện chất lượng và số lượng",
+        "recommended": false
+      }
+    ],
+    "updated_jd_draft": "Tuyển Chuyên viên Marketing tại Hà Nội. Công việc: chạy Facebook Ads, Google Ads, tối ưu SEO, viết content. Yêu cầu: 1 năm kinh nghiệm Marketing, tốt nghiệp Đại học. Lương: 10 triệu VND/tháng, thưởng theo hiệu quả.",
+    "requires_hr_approval": true
+  },
+  "alert": {
+    "id": "alert_marketing_demo",
+    "severity": "critical",
+    "title": "Lượng CV chỉ đạt 10% KPI (2/20 CV/tuần)",
+    "campaignName": "Chuyên viên Marketing",
+    "detectedAt": "2026-11-12T18:02:05.115Z",
+    "metric": {
+      "label": "Tỷ lệ đạt KPI CV/tuần",
+      "current": 10,
+      "target": 100
+    },
+    "rootCause": {
+      "summary": "Mức lương 10 triệu VND/tháng thấp so với yêu cầu 3 năm kinh nghiệm Marketing.",
+      "confidence": 90,
+      "factors": [
+        {
+          "id": "cause_alert_marketing_demo_1",
+          "label": "Lương không cạnh tranh",
+          "detail": "Mức lương 10 triệu đồng hiện tại không thu hút được ứng viên có 3 năm kinh nghiệm trên thị trường.",
+          "impact": "high"
+        },
+        {
+          "id": "cause_alert_marketing_demo_2",
+          "label": "Yêu cầu kinh nghiệm cao",
+          "detail": "Yêu cầu 3 năm kinh nghiệm trong khi mức đãi ngộ tương ứng với vị trí sơ cấp hoặc mới ra trường.",
+          "impact": "medium"
+        }
+      ]
+    },
+    "suggestedFixes": [
+      {
+        "id": "fix_alert_marketing_demo_1",
+        "actionLabel": "Hạ yêu cầu kinh nghiệm",
+        "description": "Điều chỉnh yêu cầu kinh nghiệm từ 3 năm xuống còn 1 năm để mở rộng tệp ứng viên tiềm năng.",
+        "expectedImpact": "Tăng số lượng hồ sơ nhận được",
+        "recommended": true
+      },
+      {
+        "id": "fix_alert_marketing_demo_2",
+        "actionLabel": "Tăng lương tuyển dụng",
+        "description": "Điều chỉnh mức lương từ 10 triệu VND lên 12 triệu VND để thu hút ứng viên có kinh nghiệm.",
+        "expectedImpact": "Cải thiện chất lượng và số lượng",
+        "recommended": false
+      }
+    ]
+  },
+  "backendAlert": {
+    "severity": "critical",
+    "content": {
+      "title": {
+        "en": "CV intake is at 10% of KPI (2/20 CVs per week)",
+        "vi": "Lượng CV chỉ đạt 10% KPI (2/20 CV/tuần)"
+      },
+      "campaignName": {
+        "en": "Marketing Executive",
+        "vi": "Chuyên viên Marketing"
+      },
+      "metric": {
+        "label": {
+          "en": "CVs per week vs KPI",
+          "vi": "Số CV/tuần so với KPI"
+        },
+        "current": 10,
+        "target": 100
+      },
+      "rootCause": {
+        "summary": {
+          "en": "Mức lương 10 triệu VND/tháng thấp so với yêu cầu 3 năm kinh nghiệm Marketing.",
+          "vi": "Mức lương 10 triệu VND/tháng thấp so với yêu cầu 3 năm kinh nghiệm Marketing."
+        },
+        "confidence": 90,
+        "factors": [
+          {
+            "id": "demo_factor_1",
+            "label": {
+              "en": "Lương không cạnh tranh",
+              "vi": "Lương không cạnh tranh"
+            },
+            "detail": {
+              "en": "Mức lương 10 triệu đồng hiện tại không thu hút được ứng viên có 3 năm kinh nghiệm trên thị trường.",
+              "vi": "Mức lương 10 triệu đồng hiện tại không thu hút được ứng viên có 3 năm kinh nghiệm trên thị trường."
+            },
+            "impact": "high"
+          },
+          {
+            "id": "demo_factor_2",
+            "label": {
+              "en": "Yêu cầu kinh nghiệm cao",
+              "vi": "Yêu cầu kinh nghiệm cao"
+            },
+            "detail": {
+              "en": "Yêu cầu 3 năm kinh nghiệm trong khi mức đãi ngộ tương ứng với vị trí sơ cấp hoặc mới ra trường.",
+              "vi": "Yêu cầu 3 năm kinh nghiệm trong khi mức đãi ngộ tương ứng với vị trí sơ cấp hoặc mới ra trường."
+            },
+            "impact": "medium"
+          }
+        ]
+      },
+      "suggestedFixes": [
+        {
+          "id": "demo_fix_1",
+          "actionLabel": {
+            "en": "Hạ yêu cầu kinh nghiệm",
+            "vi": "Hạ yêu cầu kinh nghiệm"
+          },
+          "description": {
+            "en": "Điều chỉnh yêu cầu kinh nghiệm từ 3 năm xuống còn 1 năm để mở rộng tệp ứng viên tiềm năng.",
+            "vi": "Điều chỉnh yêu cầu kinh nghiệm từ 3 năm xuống còn 1 năm để mở rộng tệp ứng viên tiềm năng."
+          },
+          "expectedLift": 0,
+          "recommended": true
+        },
+        {
+          "id": "demo_fix_2",
+          "actionLabel": {
+            "en": "Tăng lương tuyển dụng",
+            "vi": "Tăng lương tuyển dụng"
+          },
+          "description": {
+            "en": "Điều chỉnh mức lương từ 10 triệu VND lên 12 triệu VND để thu hút ứng viên có kinh nghiệm.",
+            "vi": "Điều chỉnh mức lương từ 10 triệu VND lên 12 triệu VND để thu hút ứng viên có kinh nghiệm."
+          },
+          "expectedLift": 0,
+          "recommended": false
+        }
+      ]
+    }
+  }
+}

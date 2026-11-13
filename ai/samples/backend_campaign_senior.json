@@ -1,0 +1,55 @@
+{
+  "_note": "Chiến dịch senior-frontend-engineer đúng như seed của backend (nhánh feature/backend-supabase: dashboard.ts, campaigns.ts, analytics.ts). Seed tạo chiến dịch 1 ngày trước khi chạy seed, nên createdAt đặt 1 ngày trước thời điểm test (2026-11-13).",
+  "campaignId": "senior-frontend-engineer",
+  "title": {
+    "en": "Senior Frontend Engineer",
+    "vi": "Kỹ sư Frontend cấp cao"
+  },
+  "matchRate": 42,
+  "targetMatchRate": 60,
+  "applicants": 64,
+  "createdAt": "2026-11-12T02:00:00.000Z",
+  "setup": {
+    "title": "Senior Frontend Engineer",
+    "department": "engineering",
+    "location": "Ho Chi Minh City",
+    "workMode": "hybrid",
+    "seniority": "senior",
+    "headcount": 2,
+    "skills": [
+      "React",
+      "TypeScript",
+      "Next.js",
+      "GraphQL",
+      "Testing Library",
+      "Web Performance",
+      "Accessibility"
+    ],
+    "minExperience": 7,
+    "salaryMin": 90,
+    "salaryMax": 110,
+    "channels": [
+      "itviec",
+      "topcv"
+    ],
+    "agents": {
+      "sourcing": true,
+      "matching": true,
+      "scheduling": true,
+      "selfHealing": true
+    },
+    "targetMatchRate": 60
+  },
+  "channelResults": [
+    {
+      "channel": "itviec",
+      "applicants": 38,
+      "qualified": 17
+    },
+    {
+      "channel": "topcv",
+      "applicants": 26,
+      "qualified": 10
+    }
+  ]
+}
