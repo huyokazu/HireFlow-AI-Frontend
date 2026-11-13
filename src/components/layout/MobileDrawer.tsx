@@ -2,6 +2,9 @@ import { useEffect, type ReactNode } from 'react';
 import { BackHandler, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInLeft, SlideOutLeft } from 'react-native-reanimated';
 
+import { useI18n } from '../../i18n';
+import { useAppTheme } from '../../theme';
+
 type MobileDrawerProps = {
   open: boolean;
   onClose: () => void;
@@ -10,6 +13,9 @@ type MobileDrawerProps = {
 
 /** Slide-in panel for the sidebar on screens too narrow to show it permanently. */
 export function MobileDrawer({ open, onClose, children }: MobileDrawerProps) {
+  const { t } = useI18n();
+  const { palette } = useAppTheme();
+
   useEffect(() => {
     if (!open) return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -30,7 +36,7 @@ export function MobileDrawer({ open, onClose, children }: MobileDrawerProps) {
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Close menu"
+            accessibilityLabel={t.nav.closeMenu}
             onPress={onClose}
             style={StyleSheet.absoluteFill}
           />
@@ -40,7 +46,7 @@ export function MobileDrawer({ open, onClose, children }: MobileDrawerProps) {
         <Animated.View
           entering={SlideInLeft.duration(260)}
           exiting={SlideOutLeft.duration(220)}
-          style={styles.panel}
+          style={[styles.panel, { backgroundColor: palette.drawer }]}
         >
           {children}
         </Animated.View>
@@ -60,7 +66,7 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   backdrop: {
-    backgroundColor: 'rgba(2, 6, 23, 0.4)',
+    backgroundColor: 'rgba(2, 6, 23, 0.55)',
   },
   panel: {
     position: 'absolute',
@@ -69,6 +75,5 @@ const styles = StyleSheet.create({
     left: 0,
     width: 288,
     maxWidth: '85%',
-    backgroundColor: '#FFFFFF',
   },
 });

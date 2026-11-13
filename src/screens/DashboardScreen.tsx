@@ -1,266 +1,303 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useMemo, type ReactNode } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
 
 import { CandidateCardSwap } from '../components/CandidateCardSwap';
 import { ActiveCampaignsPanel } from '../components/dashboard/ActiveCampaignsPanel';
-import { DashboardHeader } from '../components/dashboard/DashboardHeader';
+import { OrchestratorStatusPanel } from '../components/dashboard/OrchestratorStatusPanel';
 import { SummaryStats, type SummaryStat } from '../components/dashboard/SummaryStats';
-import { MobileDrawer } from '../components/layout/MobileDrawer';
-import { getNavLabel, Sidebar, type NavKey } from '../components/layout/Sidebar';
+import { TwinSnapshotPanel } from '../components/dashboard/TwinSnapshotPanel';
+import { AppHeader } from '../components/layout/AppHeader';
+import { useShell, type Device } from '../components/layout/AppShell';
+import { ScreenContainer } from '../components/layout/ScreenContainer';
 import { SelfHealingAlertCard } from '../components/SelfHealingAlert';
+import { staggerDelay } from '../components/ui/motion';
 import { Panel, PanelLink } from '../components/ui/Panel';
-import { fetchMatchedCandidates, type Candidate } from '../services/candidates';
-import { fetchDashboardSummary, type DashboardSummary } from '../services/dashboard';
-import {
-  approveSuggestedFix,
-  fetchActiveBottleneckAlerts,
-  type BottleneckAlert,
-  type SuggestedFix,
-} from '../services/selfHealing';
-import { formatLongDate } from '../utils/formatters';
+import { useI18n, type Dictionary } from '../i18n';
+import type { DashboardSummary } from '../services/dashboard';
+import type { PipelineStage } from '../services/pipeline';
+import { FEATURED_CAMPAIGN_ID, useWorkspace } from '../state/WorkspaceProvider';
+import { useAppTheme } from '../theme';
 
-/** At this width and above the sidebar is always visible; below it lives in a drawer. */
-const WIDE_LAYOUT_MIN_WIDTH = 1024;
-const SIDEBAR_WIDTH = 264;
-const FEATURED_CAMPAIGN_ID = 'senior-frontend-engineer';
-// Placeholder until Supabase Auth provides the signed-in user.
-const CURRENT_USER = { name: 'Jordan Lee', title: 'Head of Talent' };
+// Entrance order: header, stats (staggered), then the panels.
+const STATS_DELAY = 80;
+// The panels cascade in right after the four stats, one stagger step apart.
+const PANELS_DELAY = staggerDelay(4, STATS_DELAY) + 40;
+const PANEL_DELAYS = {
+  candidates: staggerDelay(0, PANELS_DELAY),
+  orchestrator: staggerDelay(1, PANELS_DELAY),
+  alert: staggerDelay(2, PANELS_DELAY),
+  twin: staggerDelay(3, PANELS_DELAY),
+  campaigns: staggerDelay(4, PANELS_DELAY),
+};
+/** The dashboard previews a few campaigns; the Campaigns page lists them all. */
+const MAX_DASHBOARD_CAMPAIGNS = 4;
+/** Candidates at these stages have already been shortlisted. */
+const SHORTLISTED_STAGES: readonly PipelineStage[] = ['interview', 'offer', 'hired'];
+/** Room the page column needs for the wide layout: the deck beside a column of panels. */
+const BENTO_MIN_WIDTH = 860;
+/** Room for the four stats in one row. */
+const STATS_ROW_MIN_WIDTH = 680;
+
+/**
+ * How the dashboard arranges its panels:
+ * - `stack`: one column, on phones.
+ * - `split`: two equal columns, the deck on the left and the alert and Digital Twin on the right
+ *   (tablets, and desktop windows too narrow for `bento`).
+ * - `bento`: a 12-column grid with the stats across the top, the deck in 7 columns on the left,
+ *   and the Orchestrator, the alert and the Digital Twin in 5 columns on the right.
+ */
+type DashboardLayout = 'stack' | 'split' | 'bento';
+
+function layoutFor(device: Device, contentWidth: number): DashboardLayout {
+  if (device === 'phone') return 'stack';
+  if (device === 'tablet' || contentWidth < BENTO_MIN_WIDTH) return 'split';
+  return 'bento';
+}
 
 export function DashboardScreen() {
-  const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const isWide = width >= WIDE_LAYOUT_MIN_WIDTH;
-
-  const [activeNav, setActiveNav] = useState<NavKey>('dashboard');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [candidates, setCandidates] = useState<Candidate[] | null>(null);
-  const [alerts, setAlerts] = useState<BottleneckAlert[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchDashboardSummary().then((result) => {
-      if (!cancelled) setSummary(result);
-    });
-    fetchMatchedCandidates(FEATURED_CAMPAIGN_ID).then((result) => {
-      if (!cancelled) setCandidates(result);
-    });
-    fetchActiveBottleneckAlerts(FEATURED_CAMPAIGN_ID).then((result) => {
-      if (!cancelled) setAlerts(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const navigate = useCallback((key: NavKey) => {
-    setActiveNav(key);
-    setDrawerOpen(false);
-  }, []);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const dismissAlert = useCallback((alert: BottleneckAlert) => {
-    setAlerts((current) => current.filter((item) => item.id !== alert.id));
-  }, []);
-
-  const sidebar = (
-    <Sidebar
-      activeKey={activeNav}
-      onNavigate={navigate}
-      agentsOnline={summary?.agentsOnline ?? 0}
-      user={CURRENT_USER}
-      badges={{
-        candidates: { count: summary?.candidatesInPipeline ?? 0 },
-        'self-healing': { count: alerts.length, tone: 'alert' },
-      }}
-    />
-  );
-
-  const isDashboard = activeNav === 'dashboard';
-  const today = formatLongDate(new Date());
+  const { t } = useI18n();
+  const { summary } = useWorkspace();
+  const today = t.date.long(new Date());
 
   return (
-    <View className="flex-1 flex-row bg-slate-50">
-      <LinearGradient
-        colors={['#EEF2FF', '#F8FAFC', '#F5F3FF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
+    <ScreenContainer>
+      <AppHeader
+        title={t.dashboard.title}
+        subtitle={summary ? t.dashboard.subtitle(today, summary.activeCampaigns) : today}
       />
-
-      {isWide && <View style={{ width: SIDEBAR_WIDTH }}>{sidebar}</View>}
-
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={{
-          paddingTop: insets.top + 24,
-          paddingBottom: insets.bottom + 48,
-          paddingHorizontal: isWide ? 32 : 16,
-        }}
-      >
-        <View className="w-full max-w-[1280px] self-center">
-          <DashboardHeader
-            title={isDashboard ? 'Recruitment overview' : getNavLabel(activeNav)}
-            subtitle={summary ? `${today} · ${summary.activeCampaigns} active campaigns` : today}
-            notificationCount={alerts.length}
-            onOpenMenu={isWide ? undefined : () => setDrawerOpen(true)}
-            onCreateCampaign={() => navigate('campaigns')}
-          />
-
-          {isDashboard ? (
-            <DashboardOverview
-              summary={summary}
-              candidates={candidates}
-              alert={alerts[0] ?? null}
-              onApproveFix={(alert, fix) => approveSuggestedFix(alert.id, fix.id)}
-              onDismissAlert={dismissAlert}
-              onNavigate={navigate}
-            />
-          ) : (
-            <SectionPlaceholder label={getNavLabel(activeNav)} />
-          )}
-        </View>
-      </ScrollView>
-
-      {!isWide && (
-        <MobileDrawer open={drawerOpen} onClose={closeDrawer}>
-          {sidebar}
-        </MobileDrawer>
-      )}
-    </View>
+      <DashboardOverview />
+    </ScreenContainer>
   );
 }
 
-type DashboardOverviewProps = {
-  summary: DashboardSummary | null;
-  candidates: Candidate[] | null;
-  alert: BottleneckAlert | null;
-  onApproveFix: (alert: BottleneckAlert, fix: SuggestedFix) => Promise<void>;
-  onDismissAlert: (alert: BottleneckAlert) => void;
-  onNavigate: (key: NavKey) => void;
-};
+function DashboardOverview() {
+  const { t, pick } = useI18n();
+  const { palette } = useAppTheme();
+  const router = useRouter();
+  const { device, contentWidth } = useShell();
+  const {
+    summary,
+    matchedCandidates,
+    pipeline,
+    alerts,
+    approvals,
+    approveFix,
+    dismissAlert,
+    shortlistCandidate,
+    agentStats,
+    pausedAgents,
+    campaignSetups,
+    twinOffsets,
+  } = useWorkspace();
 
-function DashboardOverview({
-  summary,
-  candidates,
-  alert,
-  onApproveFix,
-  onDismissAlert,
-  onNavigate,
-}: DashboardOverviewProps) {
+  // Shortlisting moves a candidate on the board, so the deck marks its cards already past screening.
+  const shortlistedIds = useMemo(() => {
+    const advanced = new Set(
+      pipeline?.filter((candidate) => SHORTLISTED_STAGES.includes(candidate.stage)).map((candidate) => candidate.id),
+    );
+    return matchedCandidates?.filter((candidate) => advanced.has(candidate.id)).map((candidate) => candidate.id) ?? [];
+  }, [matchedCandidates, pipeline]);
+
   if (!summary) {
-    return <ActivityIndicator className="mt-24" color="#4F46E5" />;
+    return <ActivityIndicator className="mt-24" color={palette.indigo} />;
   }
 
+  const layout = layoutFor(device, contentWidth);
   const featuredCampaign = summary.campaigns.find((campaign) => campaign.id === FEATURED_CAMPAIGN_ID);
+  const featuredSetup = campaignSetups[FEATURED_CAMPAIGN_ID];
+  const alert = alerts[0] ?? null;
+
+  const deck = (
+    <Animated.View entering={FadeInDown.delay(PANEL_DELAYS.candidates).duration(550)}>
+      <Panel
+        title={t.dashboard.matchedCandidates}
+        subtitle={t.dashboard.matchedSubtitle(
+          featuredCampaign ? pick(featuredCampaign.title) : t.dashboard.featuredCampaign,
+        )}
+        action={
+          <PanelLink
+            label={t.dashboard.openBoard}
+            onPress={() => router.navigate({ pathname: '/candidates', params: { campaign: FEATURED_CAMPAIGN_ID } })}
+          />
+        }
+      >
+        <View className="pb-1 pt-4">
+          {matchedCandidates && pipeline ? (
+            <CandidateCardSwap
+              candidates={matchedCandidates}
+              initialShortlistedIds={shortlistedIds}
+              onShortlist={(candidate) => shortlistCandidate(candidate.id)}
+            />
+          ) : (
+            <ActivityIndicator className="my-24" color={palette.indigo} />
+          )}
+        </View>
+      </Panel>
+    </Animated.View>
+  );
+
+  const orchestrator = agentStats && (
+    <Animated.View entering={FadeInDown.delay(PANEL_DELAYS.orchestrator).duration(550)}>
+      <OrchestratorStatusPanel
+        stats={agentStats}
+        paused={pausedAgents}
+        campaigns={summary.campaigns.length}
+        onOpenAgents={() => router.navigate('/agents')}
+        enterDelay={PANEL_DELAYS.orchestrator}
+      />
+    </Animated.View>
+  );
+
+  const alertBlock = alert && (
+    <View className="gap-3">
+      <Animated.View exiting={FadeOut.duration(250)}>
+        <SelfHealingAlertCard
+          key={alert.id}
+          alert={alert}
+          approvedFixId={approvals[alert.id]?.fixId}
+          onApproveFix={approveFix}
+          onDismiss={dismissAlert}
+          enterDelay={PANEL_DELAYS.alert}
+        />
+      </Animated.View>
+      {/* The dashboard shows the most urgent alert; the rest wait on the Self-Healing page. */}
+      {alerts.length > 1 && (
+        <Animated.View entering={FadeIn.delay(PANEL_DELAYS.alert).duration(300)} className="items-end">
+          <PanelLink
+            label={t.dashboard.moreAlerts(alerts.length - 1)}
+            onPress={() => router.navigate('/self-healing')}
+          />
+        </Animated.View>
+      )}
+    </View>
+  );
+
+  const twin = featuredCampaign && featuredSetup && (
+    <Animated.View entering={FadeInDown.delay(PANEL_DELAYS.twin).duration(550)}>
+      <TwinSnapshotPanel
+        campaign={featuredCampaign}
+        setup={featuredSetup}
+        offset={twinOffsets[FEATURED_CAMPAIGN_ID] ?? 0}
+        onOpenTwin={() =>
+          router.navigate({ pathname: '/digital-twin', params: { campaign: FEATURED_CAMPAIGN_ID } })
+        }
+        enterDelay={PANEL_DELAYS.twin}
+      />
+    </Animated.View>
+  );
+
+  const campaigns = (
+    <Animated.View
+      entering={FadeInDown.delay(PANEL_DELAYS.campaigns).duration(550)}
+      layout={LinearTransition.duration(300)}
+    >
+      <ActiveCampaignsPanel
+        campaigns={summary.campaigns.slice(0, MAX_DASHBOARD_CAMPAIGNS)}
+        onViewAll={() => router.navigate('/campaigns')}
+        enterDelay={PANEL_DELAYS.campaigns}
+      />
+    </Animated.View>
+  );
 
   return (
     <>
       <View className="mt-6">
-        <SummaryStats stats={buildSummaryStats(summary)} />
+        <SummaryStats
+          stats={buildSummaryStats(summary, t)}
+          enterDelay={STATS_DELAY}
+          columns={contentWidth >= STATS_ROW_MIN_WIDTH ? 4 : 2}
+        />
       </View>
 
-      {/* One column until there is room for two; the card stack takes the wider one. */}
-      <View className="mt-6 gap-6 xl:flex-row xl:items-start">
-        <Panel
-          className="xl:flex-[7]"
-          title="Matched candidates"
-          subtitle={`${featuredCampaign?.title ?? 'Featured campaign'} · ranked by the Matching Agent`}
-          action={<PanelLink label="Open board" onPress={() => onNavigate('candidates')} />}
-        >
-          <View className="pb-1 pt-6">
-            {candidates ? (
-              <CandidateCardSwap candidates={candidates} />
-            ) : (
-              <ActivityIndicator className="my-24" color="#4F46E5" />
-            )}
-          </View>
-        </Panel>
-
-        <View className="gap-6 xl:flex-[5]">
-          {alert && (
-            <SelfHealingAlertCard
-              key={alert.id}
-              alert={alert}
-              onApproveFix={onApproveFix}
-              onDismiss={onDismissAlert}
-            />
-          )}
-          <ActiveCampaignsPanel
-            campaigns={summary.campaigns}
-            onViewAll={() => onNavigate('campaigns')}
-          />
+      {layout === 'stack' ? (
+        <View className="mt-6 gap-6">
+          {deck}
+          {alertBlock}
+          {orchestrator}
+          {twin}
+          {campaigns}
         </View>
-      </View>
+      ) : (
+        <View className="mt-6 flex-row items-start gap-6">
+          <Column span={layout === 'bento' ? 7 : 6} front>
+            {deck}
+            {layout === 'split' && orchestrator}
+            {campaigns}
+          </Column>
+          <Column span={layout === 'bento' ? 5 : 6}>
+            {layout === 'bento' && orchestrator}
+            {alertBlock}
+            {twin}
+          </Column>
+        </View>
+      )}
     </>
   );
 }
 
-function SectionPlaceholder({ label }: { label: string }) {
+/**
+ * A column of the dashboard grid, `span` of 12 wide. The deck's column sits in front, so a card
+ * flung to the right flies over the panels beside it.
+ */
+function Column({ span, front = false, children }: { span: number; front?: boolean; children: ReactNode }) {
   return (
-    <Panel className="mt-6" title={label} subtitle="This workspace is next on the roadmap.">
-      <View className="items-center rounded-2xl border border-dashed border-slate-300 px-6 py-16">
-        <Ionicons name="construct-outline" size={28} color="#94A3B8" />
-        <Text className="mt-3 text-center text-sm text-slate-500">
-          Not built yet. Head back to the Dashboard for the live overview.
-        </Text>
-      </View>
-    </Panel>
+    <View className="min-w-0 gap-6" style={{ flex: span, zIndex: front ? 2 : 1 }}>
+      {children}
+    </View>
   );
 }
 
-function buildSummaryStats(summary: DashboardSummary): SummaryStat[] {
+function buildSummaryStats(summary: DashboardSummary, t: Dictionary): SummaryStat[] {
   const matchGap = summary.averageMatchRate - summary.targetMatchRate;
   const hireChange = summary.timeToHireChangeDays;
   return [
     {
       key: 'campaigns',
-      label: 'Active campaigns',
-      value: String(summary.activeCampaigns),
+      label: t.stats.activeCampaigns,
+      value: summary.activeCampaigns,
+      format: String,
       icon: 'megaphone-outline',
       accent: 'indigo',
       delta:
         summary.campaignsAtRisk > 0
-          ? { text: `${summary.campaignsAtRisk} need attention`, tone: 'negative', icon: 'alert-circle-outline' }
-          : { text: 'All on track', tone: 'positive', icon: 'checkmark-circle-outline' },
+          ? { text: t.stats.needAttention(summary.campaignsAtRisk), tone: 'negative', icon: 'alert-circle-outline' }
+          : { text: t.stats.allOnTrack, tone: 'positive', icon: 'checkmark-circle-outline' },
     },
     {
       key: 'pipeline',
-      label: 'Candidates in pipeline',
-      value: String(summary.candidatesInPipeline),
+      label: t.stats.pipeline,
+      value: summary.candidatesInPipeline,
+      format: String,
       icon: 'people-outline',
       accent: 'violet',
-      delta: { text: `+${summary.newCandidatesThisWeek} this week`, tone: 'positive' },
+      delta: { text: t.stats.newThisWeek(summary.newCandidatesThisWeek), tone: 'positive' },
     },
     {
       key: 'match-rate',
-      label: 'Avg. match rate',
-      value: `${summary.averageMatchRate}%`,
+      label: t.stats.matchRate,
+      value: summary.averageMatchRate,
+      format: (value) => `${value}%`,
       icon: 'analytics-outline',
       accent: 'emerald',
-      delta: {
-        text: `${matchGap >= 0 ? '+' : ''}${matchGap} pts vs target`,
-        tone: matchGap >= 0 ? 'positive' : 'negative',
-      },
+      delta: { text: t.stats.vsTarget(matchGap), tone: matchGap >= 0 ? 'positive' : 'negative' },
     },
     {
       key: 'time-to-hire',
-      label: 'Avg. time to hire',
-      value: `${summary.averageTimeToHireDays} days`,
+      label: t.stats.timeToHire,
+      value: summary.averageTimeToHireDays,
+      format: t.stats.days,
       icon: 'time-outline',
       accent: 'amber',
       delta: {
-        text: `${Math.abs(hireChange)} days ${hireChange <= 0 ? 'faster' : 'slower'} than last month`,
+        text:
+          hireChange <= 0
+            ? t.stats.fasterThanLastMonth(Math.abs(hireChange))
+            : t.stats.slowerThanLastMonth(hireChange),
         tone: hireChange <= 0 ? 'positive' : 'negative',
         icon: hireChange <= 0 ? 'trending-down' : 'trending-up',
       },
     },
   ];
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-});

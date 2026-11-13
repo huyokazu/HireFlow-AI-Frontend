@@ -1,11 +1,12 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CandidateCardSwap } from '../components/CandidateCardSwap';
+import { ThemedBackdrop } from '../components/layout/ThemedBackdrop';
 import { SelfHealingAlertPopup } from '../components/SelfHealingAlert';
+import { useI18n, type Localized } from '../i18n';
 import { fetchMatchedCandidates, type Candidate } from '../services/candidates';
 import {
   approveSuggestedFix,
@@ -13,11 +14,15 @@ import {
   type BottleneckAlert,
   type SuggestedFix,
 } from '../services/selfHealing';
+import { useAppTheme } from '../theme';
 
 const CAMPAIGN_ID = 'senior-frontend-engineer';
+const CAMPAIGN_NAME: Localized = { en: 'Senior Frontend Engineer', vi: 'Kỹ sư Frontend cấp cao' };
 
 export function CandidateReviewScreen() {
   const insets = useSafeAreaInsets();
+  const { t, pick } = useI18n();
+  const { palette } = useAppTheme();
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [openAlert, setOpenAlert] = useState<BottleneckAlert | null>(null);
 
@@ -26,7 +31,8 @@ export function CandidateReviewScreen() {
     fetchMatchedCandidates(CAMPAIGN_ID).then((result) => {
       if (!cancelled) setCandidates(result);
     });
-    fetchActiveBottleneckAlerts(CAMPAIGN_ID).then(([latest]) => {
+    fetchActiveBottleneckAlerts().then((alerts) => {
+      const latest = alerts.find((alert) => alert.campaignId === CAMPAIGN_ID);
       if (!cancelled && latest) setOpenAlert(latest);
     });
     return () => {
@@ -35,13 +41,8 @@ export function CandidateReviewScreen() {
   }, []);
 
   return (
-    <View className="flex-1 bg-slate-50">
-      <LinearGradient
-        colors={['#EEF2FF', '#F8FAFC', '#F5F3FF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+    <View className="flex-1 bg-slate-50 dark:bg-obsidian">
+      <ThemedBackdrop />
       <ScrollView
         contentContainerStyle={{
           alignItems: 'center',
@@ -51,17 +52,17 @@ export function CandidateReviewScreen() {
         }}
       >
         <View className="w-full max-w-md">
-          <View className="mb-3 self-start rounded-full border border-indigo-200 bg-white/70 px-3 py-1">
-            <Text className="text-xs font-semibold text-indigo-700">Senior Frontend Engineer</Text>
+          <View className="mb-3 self-start rounded-full border border-indigo-200 bg-white/70 px-3 py-1 dark:border-indigo-400/30 dark:bg-indigo-500/10">
+            <Text className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+              {pick(CAMPAIGN_NAME)}
+            </Text>
           </View>
-          <Text className="text-3xl font-bold text-slate-900">Review matched candidates</Text>
-          <Text className="mt-2 text-base leading-6 text-slate-500">
-            Ranked by the Matching Agent against this campaign's requirements.
-          </Text>
+          <Text className="text-3xl font-bold text-slate-900 dark:text-white">{t.review.title}</Text>
+          <Text className="mt-2 text-base leading-6 text-slate-500 dark:text-slate-400">{t.review.subtitle}</Text>
 
           <View className="mt-8">
             {candidates === null ? (
-              <ActivityIndicator className="mt-24" color="#4F46E5" />
+              <ActivityIndicator className="mt-24" color={palette.indigo} />
             ) : (
               <CandidateCardSwap candidates={candidates} />
             )}
@@ -72,7 +73,9 @@ export function CandidateReviewScreen() {
       <SelfHealingAlertPopup
         alert={openAlert}
         onClose={() => setOpenAlert(null)}
-        onApproveFix={(alert: BottleneckAlert, fix: SuggestedFix) => approveSuggestedFix(alert.id, fix.id)}
+        onApproveFix={async (alert: BottleneckAlert, fix: SuggestedFix) => {
+          await approveSuggestedFix(alert.id, fix.id);
+        }}
       />
     </View>
   );
