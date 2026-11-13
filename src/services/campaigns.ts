@@ -1,4 +1,4 @@
-import type { Localized } from '../i18n/types';
+import type { Language, Localized } from '../i18n/types';
 import type { AgentEvent } from './agents';
 import { loadBootstrap } from './bootstrap';
 import type { CampaignSummary } from './dashboard';
@@ -156,12 +156,17 @@ export async function launchCampaign(draft: CampaignDraft): Promise<CampaignSumm
   return (await launchCampaignWithEvents(draft)).campaign;
 }
 
-export async function launchCampaignWithEvents(draft: CampaignDraft): Promise<LaunchResult> {
+/**
+ * Like {@link launchCampaign}, with the Orchestrator's events. On the server the Talent Agent then
+ * scores the workspace's talent pool against the new role in the background, writing its reasons in
+ * `language`; its results arrive over Realtime.
+ */
+export async function launchCampaignWithEvents(draft: CampaignDraft, language?: Language): Promise<LaunchResult> {
   const remote = getRemote();
   if (remote) {
     return remote.request<{ campaign: CampaignSummary; events: AgentEvent[] }>('/api/campaigns', {
       method: 'POST',
-      body: { draft },
+      body: language ? { draft, language } : { draft },
     });
   }
   return { campaign: await mockLaunch(draft), events: null };

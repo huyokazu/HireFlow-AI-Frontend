@@ -127,6 +127,11 @@ export const en = {
       low: 'Low match',
     },
     shortlisted: 'Shortlisted',
+    proofOfSkill: 'Proof of skill',
+    rubric: { skills: 'Skills', experience: 'Experience', other: 'Other' },
+    rubricA11y: (skills: number, experience: number, other: number) =>
+      `Skills ${skills} of 50, experience ${experience} of 30, other ${other} of 20`,
+    precomputed: 'Precomputed',
   },
   deck: {
     emptyTitle: 'No matched candidates yet',
@@ -416,6 +421,23 @@ export const en = {
     },
     openAlerts: 'Open alerts',
     openAlertsHint: 'Check the AI root cause, then approve a fix. The Orchestrator applies it and keeps watching.',
+    diagnose: {
+      title: 'Optimization Agent',
+      body: (count: number) =>
+        count === 0
+          ? 'Every campaign behind target has an alert or a fix in progress.'
+          : `${count} ${count === 1 ? 'campaign is' : 'campaigns are'} behind target with no alert yet.`,
+      action: 'Run diagnosis',
+      running: 'Diagnosing…',
+      done: 'Diagnosed',
+      resultLive: (found: number) =>
+        found === 0 ? 'Gemini found no new bottleneck.' : `Gemini flagged ${found} new ${found === 1 ? 'bottleneck' : 'bottlenecks'}.`,
+      resultFallback: (found: number) =>
+        found === 0
+          ? 'No new bottleneck. The live AI was slow or busy, so a precomputed answer was used.'
+          : `${found} new ${found === 1 ? 'bottleneck' : 'bottlenecks'} flagged. The live AI was slow or busy, so a precomputed answer was used.`,
+      failed: 'The diagnosis could not run. Try again.',
+    },
     monitorPaused: "The Self-Healing monitor is paused, so it won't raise new alerts.",
     resumeMonitor: 'Resume monitor',
     allClearTitle: 'No open bottlenecks',

@@ -5,6 +5,7 @@
 export type { Localized, Language } from '@app/i18n/types';
 export type { CampaignHealth, CampaignStage, CampaignSummary, DashboardSummary } from '@app/services/dashboard';
 export type { Candidate } from '@app/services/candidates';
+export type { AiSource, ProofOfSkill } from '@app/services/talent';
 export type { PipelineCandidate, PipelineStage } from '@app/services/pipeline';
 export type {
   CampaignAgent,

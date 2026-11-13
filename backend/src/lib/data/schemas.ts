@@ -43,7 +43,9 @@ export const campaignDraftSchema = z
     path: ['salaryMax'],
   }) satisfies z.ZodType<CampaignDraft>;
 
-export const launchCampaignBody = z.strictObject({ draft: campaignDraftSchema });
+export const languageSchema = z.enum(['en', 'vi']);
+
+export const launchCampaignBody = z.strictObject({ draft: campaignDraftSchema, language: languageSchema.optional() });
 export const updateSetupBody = z.strictObject({ setup: campaignDraftSchema });
 
 export const moveCandidateBody = z.strictObject({

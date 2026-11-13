@@ -6,6 +6,7 @@ import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { useI18n } from '../../i18n';
 import type { Candidate } from '../../services/candidates';
+import { RUBRIC_MAX, type ProofOfSkill } from '../../services/talent';
 import { useAppTheme } from '../../theme';
 import { getInitials } from '../../utils/formatters';
 import { getMatchTier } from '../../utils/matchScore';
@@ -104,19 +105,23 @@ export function CandidateCard({
 
         <View>
           <View className="mb-2 flex-row items-center justify-between">
-            <SectionLabel>{t.candidate.matchScore}</SectionLabel>
+            <SectionLabel>{candidate.proof ? t.candidate.proofOfSkill : t.candidate.matchScore}</SectionLabel>
             <View className={`rounded-full border px-2 py-0.5 ${tier.badgeClassName}`}>
               <Text className={`text-xs font-semibold ${tier.textClassName}`}>
                 {t.candidate.tiers[tier.key]}
               </Text>
             </View>
           </View>
-          <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-            <View
-              className={`h-full rounded-full ${tier.barClassName}`}
-              style={{ width: `${Math.max(0, Math.min(100, candidate.matchScore))}%` }}
-            />
-          </View>
+          {candidate.proof ? (
+            <ProofOfSkillBar proof={candidate.proof} />
+          ) : (
+            <View className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+              <View
+                className={`h-full rounded-full ${tier.barClassName}`}
+                style={{ width: `${Math.max(0, Math.min(100, candidate.matchScore))}%` }}
+              />
+            </View>
+          )}
         </View>
 
         <View>
@@ -155,6 +160,55 @@ export function CandidateCard({
             {pick(candidate.aiAssessment)}
           </Text>
         </View>
+      </View>
+    </View>
+  );
+}
+
+const RUBRIC_PARTS = [
+  { key: 'skills', fill: 'bg-indigo-500 dark:bg-indigo-400', dot: 'bg-indigo-500 dark:bg-indigo-400' },
+  { key: 'experience', fill: 'bg-violet-500 dark:bg-violet-400', dot: 'bg-violet-500 dark:bg-violet-400' },
+  { key: 'other', fill: 'bg-sky-500 dark:bg-sky-400', dot: 'bg-sky-500 dark:bg-sky-400' },
+] as const;
+
+/**
+ * The Talent Agent's rubric behind the match score: one track per part, as wide as the points it
+ * is worth (50 / 30 / 20), filled to the points the candidate earned, with the numbers underneath.
+ */
+function ProofOfSkillBar({ proof }: { proof: ProofOfSkill }) {
+  const { t } = useI18n();
+  const { breakdown } = proof;
+  return (
+    <View
+      accessibilityRole="text"
+      accessibilityLabel={t.candidate.rubricA11y(breakdown.skills, breakdown.experience, breakdown.other)}
+    >
+      <View className="h-2 flex-row gap-0.5">
+        {RUBRIC_PARTS.map((part) => (
+          <View
+            key={part.key}
+            className="h-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"
+            style={{ flex: RUBRIC_MAX[part.key] }}
+          >
+            <View
+              className={`h-full rounded-full ${part.fill}`}
+              style={{ width: `${(100 * breakdown[part.key]) / RUBRIC_MAX[part.key]}%` }}
+            />
+          </View>
+        ))}
+      </View>
+      <View className="mt-1.5 flex-row flex-wrap items-center gap-x-3 gap-y-0.5">
+        {RUBRIC_PARTS.map((part) => (
+          <View key={part.key} className="flex-row items-center gap-1">
+            <View className={`h-1.5 w-1.5 rounded-full ${part.dot}`} />
+            <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+              {t.candidate.rubric[part.key]}{' '}
+              <Text className="font-semibold text-slate-700 dark:text-slate-200">
+                {breakdown[part.key]}/{RUBRIC_MAX[part.key]}
+              </Text>
+            </Text>
+          </View>
+        ))}
       </View>
     </View>
   );

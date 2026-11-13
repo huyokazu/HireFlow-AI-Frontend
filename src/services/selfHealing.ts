@@ -3,6 +3,8 @@ import type { AgentEvent } from './agents';
 import { loadBootstrap } from './bootstrap';
 import { fetchCampaignSetups, type CampaignDraft } from './campaigns';
 import { matchRateLift } from './digitalTwin';
+import { withAiFallback, type Sourced } from './fallback';
+import { precomputedDiagnosis, type DiagnosisInput } from './precomputed';
 import { getRemote, mockDelay, readWithFallback } from './remote';
 
 export type AlertSeverity = 'critical' | 'warning';
@@ -438,6 +440,55 @@ export async function fetchHealingHistory(): Promise<HealingRecord[]> {
     'healing history',
     async (remote) => (await loadBootstrap(remote)).history,
     async () => MOCK_HISTORY,
+  );
+}
+
+/** What a diagnosis found: a new (or the campaign's already open) alert, or `null` for no bottleneck. */
+export type DiagnosisResult = {
+  alert: (BottleneckAlert & Partial<AlertDecision>) | null;
+  /** What the Optimization Agent logged (`null` when the app logs it: mock mode or the app's own precomputed answer). */
+  events: AgentEvent[] | null;
+  /**
+   * From the server: `gemini` for a live diagnosis, `fallback` when the server used its precomputed
+   * one (Gemini late, rate-limited or not configured), `existing` for the campaign's open alert.
+   */
+  source?: 'gemini' | 'fallback' | 'existing';
+};
+
+/**
+ * Asks the Optimization Agent (Gemini, on the server) to diagnose a campaign that is behind its
+ * target. The server answers with its precomputed diagnosis when Gemini takes longer than 4 s or is
+ * rate-limited; when the API itself can't be reached in time, the app's own precomputed copy is used.
+ * Precomputed answers have both languages; a live one is in Vietnamese, the language the agent's fix
+ * parser reads.
+ */
+export async function requestDiagnosis(campaignId: string, input: DiagnosisInput): Promise<Sourced<DiagnosisResult>> {
+  return withAiFallback(
+    'diagnosis',
+    (remote, timeoutMs) =>
+      remote.request<DiagnosisResult>(`/api/self-healing/campaigns/${encodeURIComponent(campaignId)}/diagnose`, {
+        method: 'POST',
+        timeoutMs,
+      }),
+    async (): Promise<DiagnosisResult> => {
+      await mockDelay(900);
+      const draft = precomputedDiagnosis(campaignId, input);
+      if (!draft) return { alert: null, events: null };
+      const detectedAt = new Date().toISOString();
+      return {
+        alert: {
+          id: `precomputed-${campaignId}-${Date.now().toString(36)}`,
+          campaignId,
+          severity: draft.severity,
+          detectedAt,
+          ...draft.content,
+          status: 'open',
+          approvedFixId: null,
+          decidedAt: null,
+        },
+        events: null,
+      };
+    },
   );
 }
 

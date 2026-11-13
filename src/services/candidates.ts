@@ -1,6 +1,7 @@
 import type { Localized } from '../i18n/types';
 import { loadBootstrap } from './bootstrap';
-import { readWithFallback } from './remote';
+import { getRemote, readWithFallback } from './remote';
+import { skillOverlap, type ProofOfSkill } from './talent';
 
 export type Candidate = {
   id: string;
@@ -13,6 +14,8 @@ export type Candidate = {
   /** Technology names, the same in every language. */
   skills: string[];
   aiAssessment: Localized;
+  /** The Talent Agent's rubric behind `matchScore`; missing for candidates scored before it existed. */
+  proof?: ProofOfSkill;
 };
 
 const MOCK_CANDIDATES: Candidate[] = [
@@ -96,6 +99,78 @@ const MOCK_CANDIDATES: Candidate[] = [
   },
 ];
 
+/** The featured campaign's required skills (its mock setup), which the demo rubric grades against. */
+const FEATURED_SKILLS = ['React', 'TypeScript', 'Next.js', 'GraphQL', 'Testing Library', 'Web Performance', 'Accessibility'];
+
+/**
+ * The Talent Agent's rubric for the demo candidates, precomputed: points per part (adding up to
+ * each match score) and its reasons, in both languages.
+ */
+const MOCK_PROOFS: Record<string, { breakdown: ProofOfSkill['breakdown']; reasons: [en: string, vi: string][] }> = {
+  cand_001: {
+    breakdown: { skills: 46, experience: 30, other: 18 },
+    reasons: [
+      ['Core stack match: React, TypeScript, Next.js and GraphQL.', 'Khớp stack chính: React, TypeScript, Next.js và GraphQL.'],
+      ['Led a design-system migration across 12 product teams.', 'Dẫn dắt chuyển đổi design system cho 12 nhóm sản phẩm.'],
+      ['Cut bundle size by 38%: clear web performance evidence.', 'Giảm 38% kích thước bundle: bằng chứng rõ về hiệu năng web.'],
+    ],
+  },
+  cand_002: {
+    breakdown: { skills: 42, experience: 26, other: 20 },
+    reasons: [
+      ['TypeScript and React Native carry straight over to React.', 'TypeScript và React Native áp dụng thẳng cho React.'],
+      ['Shipped two consumer apps with 1M+ installs.', 'Đã phát hành hai ứng dụng hơn 1 triệu lượt cài.'],
+      ['5 years, two below the 7-year minimum.', '5 năm, thiếu 2 năm so với mức tối thiểu 7 năm.'],
+    ],
+  },
+  cand_003: {
+    breakdown: { skills: 34, experience: 27, other: 20 },
+    reasons: [
+      ['Accessibility specialist with WCAG 2.2 audits.', 'Chuyên gia khả năng tiếp cận, từng kiểm định WCAG 2.2.'],
+      ['Works in Vue, so expect a short ramp-up on React.', 'Dùng Vue, cần thời gian ngắn để làm quen React.'],
+      ['6 years, close to the 7-year minimum.', '6 năm, gần mức tối thiểu 7 năm.'],
+    ],
+  },
+  cand_004: {
+    breakdown: { skills: 34, experience: 24, other: 18 },
+    reasons: [
+      ['Solid React fundamentals plus backend fluency.', 'Nền tảng React vững cùng năng lực backend.'],
+      ['Frontend architecture depth is moderate.', 'Chiều sâu kiến trúc frontend ở mức khá.'],
+      ['4 years, below the 7-year minimum.', '4 năm, dưới mức tối thiểu 7 năm.'],
+    ],
+  },
+  cand_005: {
+    breakdown: { skills: 32, experience: 18, other: 18 },
+    reasons: [
+      ['Steady feature delivery with React and Redux.', 'Bàn giao tính năng đều đặn với React và Redux.'],
+      ['3 years, well below the 7-year minimum.', '3 năm, thấp hơn nhiều so với mức 7 năm.'],
+    ],
+  },
+  cand_006: {
+    breakdown: { skills: 12, experience: 30, other: 10 },
+    reasons: [
+      ['9 years clears the experience bar.', '9 năm, vượt yêu cầu kinh nghiệm.'],
+      ['Angular and Java focus, with little React overlap.', 'Tập trung Angular và Java, ít trùng với React.'],
+    ],
+  },
+};
+
+function withMockProof(candidate: Candidate): Candidate {
+  const graded = MOCK_PROOFS[candidate.id];
+  if (!graded) return candidate;
+  const { matched, missing } = skillOverlap(FEATURED_SKILLS, candidate.skills);
+  return {
+    ...candidate,
+    proof: {
+      breakdown: graded.breakdown,
+      matchedSkills: matched,
+      missingSkills: missing,
+      reasons: graded.reasons.map(([en, vi]) => ({ en, vi })),
+      source: 'fallback',
+    },
+  };
+}
+
 /**
  * Returns the candidates the Matching Agent ranked for a campaign, best match first. The featured
  * campaign's come with the app's first request; any other campaign's are fetched on their own.
@@ -108,6 +183,19 @@ export async function fetchMatchedCandidates(campaignId: string): Promise<Candid
       if (bootstrap.featuredCampaignId === campaignId) return bootstrap.matchedCandidates;
       return remote.request<Candidate[]>(`/api/campaigns/${encodeURIComponent(campaignId)}/candidates`);
     },
-    async () => [...MOCK_CANDIDATES].sort((a, b) => b.matchScore - a.matchScore),
+    async () => MOCK_CANDIDATES.map(withMockProof).sort((a, b) => b.matchScore - a.matchScore),
+  );
+}
+
+/**
+ * Saves HR's "skip" on a candidate in the review deck, so the deck doesn't offer them again for
+ * this campaign. They stay on the pipeline board. Rejects when the skip was not saved.
+ */
+export async function skipMatchedCandidate(campaignId: string, candidateId: string): Promise<void> {
+  const remote = getRemote();
+  if (!remote) return;
+  await remote.request<{ skipped: boolean }>(
+    `/api/campaigns/${encodeURIComponent(campaignId)}/candidates/${encodeURIComponent(candidateId)}/skip`,
+    { method: 'POST' },
   );
 }

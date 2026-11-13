@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       '@app': path.resolve(import.meta.dirname, '../src'),
+      '@ai': path.resolve(import.meta.dirname, '../ai'),
       '@': path.resolve(import.meta.dirname, 'src'),
       'server-only': path.resolve(import.meta.dirname, 'tests/server-only-stub.ts'),
     },

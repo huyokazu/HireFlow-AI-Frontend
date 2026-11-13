@@ -86,6 +86,7 @@ function DashboardOverview() {
     approveFix,
     dismissAlert,
     shortlistCandidate,
+    skipCandidate,
     agentStats,
     pausedAgents,
     campaignSetups,
@@ -129,6 +130,7 @@ function DashboardOverview() {
               candidates={matchedCandidates}
               initialShortlistedIds={shortlistedIds}
               onShortlist={(candidate) => shortlistCandidate(candidate.id)}
+              onSkip={(candidate) => skipCandidate(candidate.id)}
             />
           ) : (
             <ActivityIndicator className="my-24" color={palette.indigo} />

@@ -124,6 +124,11 @@ export const vi: Dictionary = {
       low: 'Ít phù hợp',
     },
     shortlisted: 'Đã chọn',
+    proofOfSkill: 'Bằng chứng kỹ năng',
+    rubric: { skills: 'Kỹ năng', experience: 'Kinh nghiệm', other: 'Khác' },
+    rubricA11y: (skills: number, experience: number, other: number) =>
+      `Kỹ năng ${skills}/50, kinh nghiệm ${experience}/30, khác ${other}/20`,
+    precomputed: 'Tính sẵn',
   },
   deck: {
     emptyTitle: 'Chưa có ứng viên phù hợp',
@@ -410,6 +415,23 @@ export const vi: Dictionary = {
       backOnTarget: (count: number) => `${count} chiến dịch đạt lại mục tiêu`,
     },
     openAlerts: 'Cảnh báo cần xử lý',
+    diagnose: {
+      title: 'Agent Tối ưu',
+      body: (count: number) =>
+        count === 0
+          ? 'Mọi chiến dịch dưới mục tiêu đều đã có cảnh báo hoặc đang được sửa.'
+          : `${count} chiến dịch dưới mục tiêu chưa có cảnh báo.`,
+      action: 'Chạy chẩn đoán',
+      running: 'Đang chẩn đoán…',
+      done: 'Đã chẩn đoán',
+      resultLive: (found: number) =>
+        found === 0 ? 'Gemini không thấy điểm nghẽn mới.' : `Gemini phát hiện ${found} điểm nghẽn mới.`,
+      resultFallback: (found: number) =>
+        found === 0
+          ? 'Không có điểm nghẽn mới. AI trực tiếp đang chậm hoặc quá tải nên đã dùng kết quả tính sẵn.'
+          : `Phát hiện ${found} điểm nghẽn mới. AI trực tiếp đang chậm hoặc quá tải nên đã dùng kết quả tính sẵn.`,
+      failed: 'Chưa chạy được chẩn đoán. Hãy thử lại.',
+    },
     openAlertsHint:
       'Xem AI phân tích nguyên nhân gốc rồi phê duyệt một phương án. Agent Điều phối sẽ áp dụng và tiếp tục theo dõi.',
     monitorPaused: 'Giám sát Tự phục hồi đang tạm dừng nên sẽ không gửi cảnh báo mới.',

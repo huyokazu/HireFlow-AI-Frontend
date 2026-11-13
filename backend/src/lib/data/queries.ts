@@ -69,6 +69,8 @@ export async function getMatchedCandidates(db: Db, workspaceId: string, campaign
       .select(APPLICATION_COLUMNS)
       .eq('workspace_id', workspaceId)
       .eq('campaign_id', campaignId)
+      // HR skipped them in the review deck; they stay on the board.
+      .is('hr_decision', null)
       .order('match_score', { ascending: false })
       .order('id')
       .limit(MAX_LIST_ROWS),
@@ -80,9 +82,9 @@ export async function getMatchedCandidates(db: Db, workspaceId: string, campaign
 /** The same ranking as {@link getMatchedCandidates}, from a board already loaded. */
 export function rankMatches(pipeline: PipelineCandidate[], campaignId: string): Candidate[] {
   return pipeline
-    .filter((item) => item.campaignId === campaignId)
+    .filter((item) => item.campaignId === campaignId && !item.skipped)
     .sort((a, b) => b.matchScore - a.matchScore)
-    .map(({ campaignId: _campaign, stage: _stage, daysInStage: _days, ...candidate }) => candidate);
+    .map(({ campaignId: _campaign, stage: _stage, daysInStage: _days, skipped: _skipped, ...candidate }) => candidate);
 }
 
 export async function getCampaignSetups(db: Db, workspaceId: string): Promise<Record<string, CampaignDraft>> {

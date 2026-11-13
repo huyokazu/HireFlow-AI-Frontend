@@ -169,14 +169,14 @@ isOneToOne: false
                   ]
                 },"applications": {
                   Row: {
-                    "ai_assessment": NonNullable<Json>,"campaign_id": string,"candidate_id": string,"created_at": string,"id": string,"match_score": number,"stage": string,"stage_entered_at": string,"workspace_id": string
+                    "ai_assessment": NonNullable<Json>,"ai_details": Json | null,"campaign_id": string,"candidate_id": string,"created_at": string,"hr_decision": string | null,"id": string,"match_score": number,"stage": string,"stage_entered_at": string,"workspace_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "ai_assessment"?: NonNullable<Json>,"campaign_id": string,"candidate_id": string,"created_at"?: string,"id"?: string,"match_score"?: number,"stage"?: string,"stage_entered_at"?: string,"workspace_id": string
+                    "ai_assessment"?: NonNullable<Json>,"ai_details"?: Json | null,"campaign_id": string,"candidate_id": string,"created_at"?: string,"hr_decision"?: string | null,"id"?: string,"match_score"?: number,"stage"?: string,"stage_entered_at"?: string,"workspace_id": string
                   }
                   Update: {
-                    "ai_assessment"?: NonNullable<Json>,"campaign_id"?: string,"candidate_id"?: string,"created_at"?: string,"id"?: string,"match_score"?: number,"stage"?: string,"stage_entered_at"?: string,"workspace_id"?: string
+                    "ai_assessment"?: NonNullable<Json>,"ai_details"?: Json | null,"campaign_id"?: string,"candidate_id"?: string,"created_at"?: string,"hr_decision"?: string | null,"id"?: string,"match_score"?: number,"stage"?: string,"stage_entered_at"?: string,"workspace_id"?: string
                   }
                   Relationships: [
                     {

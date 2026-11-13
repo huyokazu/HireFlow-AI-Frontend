@@ -57,6 +57,26 @@ Expo app (native / web)
    Simulated actions are flagged `simulated: true` and marked in the UI. `OPERATIONS_REDIRECT_EMAIL` sends every outbound email and invite to one inbox, which keeps a live demo safe.
 5. **Daily catch-up.** Vercel Cron calls `GET /api/operations/run` every day. It proposes actions that are missing and runs approved ones.
 
+## AI agents (Gemini)
+
+The API calls the prompts and agents in [`ai/`](../ai/README.md) through the `@ai/*` alias, on the server only. `GEMINI_API_KEY` lives in `backend/.env.local` and never reaches the app.
+
+| Agent | Trigger | What it writes |
+|---|---|---|
+| **Talent** (`scoreCv`) | `POST /api/campaigns` with the Matching agent on, in the background | Grades up to 5 people from the workspace's talent pool whose skills overlap the new role. Adds them as applicants with `match_score`, `ai_assessment` and the rubric in `applications.ai_details` (Proof-of-Skill: skills /50, experience /30, other /20, matched and missing skills, reasons). Updates the campaign's applicants and match rate and logs `cvsScored`. |
+| **Optimization** (`diagnoseCampaign`) | `POST /api/self-healing/campaigns/:id/diagnose` ("Run diagnosis" on the Self-Healing screen) | A `bottleneck_alerts` row with each fix's `patch` (the numbers on the card, from `patchFromFix`) and `expectedLift` (Digital Twin), plus a `bottleneckFlagged` event. Returns the campaign's open alert instead if it has one. |
+
+**Fallback.** Every Gemini call runs through `runWithFallback` (`backend/src/lib/ai/runner.ts`). If Gemini takes longer than **4 s**, is rate-limited (429 / `RESOURCE_EXHAUSTED`), is unavailable, returns an invalid schema, or has no key, the agent answers with a precomputed result in the same shape:
+
+- Talent: the deterministic rubric `rubricMatch` (`src/services/talent.ts`).
+- Optimization: Gemini's saved diagnosis of the seeded campaign (`src/services/precomputed.ts`, from `ai/samples/backend_alert_senior.json`, with English added), or the Digital Twin's reading of the setup for other campaigns.
+
+Responses and rows record `source: 'gemini' | 'fallback'`. `AI_MODE=precomputed` skips Gemini entirely. On the app side, `withAiFallback` (`src/services/fallback.ts`) waits 5.5 s for an AI route (the server's 4 s plus a database round trip), then uses the same precomputed answer if the API is unreachable or rate-limited. Approving a fix that takes longer than 4 s is shown as applied straight away and taken back if the server refuses it.
+
+**Languages.** Precomputed answers carry English and Vietnamese. A live Talent answer is written in the language of the person who launched the campaign. A live Optimization answer is in Vietnamese, because `patchFromFix` reads the numbers out of Vietnamese text.
+
+**Skips.** Skipping in the review deck calls `POST /api/campaigns/:id/candidates/:candidateId/skip`, which sets `applications.hr_decision = 'skipped'`. The deck stops offering that candidate; they stay on the board. Shortlisting moves the candidate to `interview`, which starts the Operations Agent (Calendar invite with a Meet link).
+
 ## Local development
 
 You need Node 20+ and Docker Desktop running.
@@ -65,7 +85,7 @@ You need Node 20+ and Docker Desktop running.
 cd backend
 npm install
 npx supabase start          # local stack: API :54321, DB :54322, Studio :54323
-npx supabase db reset       # applies supabase/migrations
+npx supabase db reset       # applies supabase/migrations (incl. 20261113090000_ai_agents.sql)
 npm run seed:demo           # demo@hireflow.local / hireflow-demo-2026, data mirrors the app mocks
 npm run dev                 # http://localhost:3000/api/health
 ```

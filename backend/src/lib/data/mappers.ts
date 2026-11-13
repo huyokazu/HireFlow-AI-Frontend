@@ -12,6 +12,7 @@ import type {
   PausedAgents,
   PipelineCandidate,
   PipelineStage,
+  ProofOfSkill,
 } from '@/lib/contracts';
 import type { Json, Tables } from '@/lib/supabase/database.types';
 
@@ -22,7 +23,7 @@ const DAY = 24 * 60 * 60 * 1000;
 // Column lists live next to the mappers that read them, so a select and its mapper never drift.
 // Single string literals: supabase-js infers the row type from them.
 export const APPLICATION_COLUMNS =
-  'id, campaign_id, stage, stage_entered_at, match_score, ai_assessment, candidate:candidates(id, name, role, location, years_of_experience, skills)';
+  'id, campaign_id, stage, stage_entered_at, match_score, ai_assessment, ai_details, hr_decision, candidate:candidates(id, name, role, location, years_of_experience, skills)';
 export const ALERT_COLUMNS = 'id, campaign_id, severity, detected_at, content, status, approved_fix_id, decided_at';
 export const HEALING_COLUMNS = 'id, campaign_id, outcome, at, content';
 export const CAMPAIGN_COLUMNS = 'id, title, department, stage, applicants, match_rate, target_match_rate, health';
@@ -30,7 +31,7 @@ export const CAMPAIGN_COLUMNS = 'id, title, department, stage, applicants, match
 type CandidateRow = Pick<Tables<'candidates'>, 'id' | 'name' | 'role' | 'location' | 'years_of_experience' | 'skills'>;
 export type ApplicationRow = Pick<
   Tables<'applications'>,
-  'id' | 'campaign_id' | 'stage' | 'stage_entered_at' | 'match_score' | 'ai_assessment'
+  'id' | 'campaign_id' | 'stage' | 'stage_entered_at' | 'match_score' | 'ai_assessment' | 'ai_details' | 'hr_decision'
 > & { candidate: CandidateRow };
 type AlertRow = Pick<
   Tables<'bottleneck_alerts'>,
@@ -66,7 +67,15 @@ export function toCandidate(row: ApplicationRow): Candidate {
     matchScore: row.match_score,
     skills: candidate.skills,
     aiAssessment: localized(row.ai_assessment),
+    ...(isProof(row.ai_details) && { proof: row.ai_details }),
   };
+}
+
+/** `applications.ai_details` as the Talent Agent writes it; older rows have none. */
+function isProof(value: Json | null): value is Json & ProofOfSkill {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const breakdown = (value as Record<string, unknown>).breakdown;
+  return typeof breakdown === 'object' && breakdown !== null && Array.isArray((value as Record<string, unknown>).reasons);
 }
 
 export function toPipelineCandidate(row: ApplicationRow, now = Date.now()): PipelineCandidate {
@@ -75,6 +84,7 @@ export function toPipelineCandidate(row: ApplicationRow, now = Date.now()): Pipe
     campaignId: row.campaign_id,
     stage: row.stage as PipelineStage,
     daysInStage: Math.max(0, Math.floor((now - new Date(row.stage_entered_at).getTime()) / DAY)),
+    ...(row.hr_decision === 'skipped' && { skipped: true }),
   };
 }
 

@@ -13,6 +13,8 @@ export type PipelineCandidate = Candidate & {
   stage: PipelineStage;
   /** Whole days since the candidate entered the current stage. */
   daysInStage: number;
+  /** HR skipped them in the campaign's review deck, so the deck no longer offers them. */
+  skipped?: boolean;
 };
 
 /** A card left in one stage longer than this is flagged as stalled. */
