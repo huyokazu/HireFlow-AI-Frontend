@@ -1,0 +1,16 @@
+# Files Vercel CLI never uploads: secrets, installs and build output.
+**/.env
+**/.env.local
+**/.env.*.local
+**/node_modules
+**/supabase/signing_keys.json
+**/supabase/.temp
+.git
+.expo
+dist
+web-build
+ios
+android
+backend/.next
+**/test-results
+*.log
