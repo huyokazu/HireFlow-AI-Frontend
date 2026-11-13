@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import { useI18n } from '../i18n';
 import { subscribeToWorkspace } from '../lib/realtime';
 import {
   AGENT_KEYS,
@@ -23,9 +24,10 @@ import {
   updateCampaignSetup,
   type CampaignDraft,
 } from '../services/campaigns';
-import { fetchMatchedCandidates, type Candidate } from '../services/candidates';
+import { fetchMatchedCandidates, skipMatchedCandidate, type Candidate } from '../services/candidates';
 import { fetchDashboardSummary, type CampaignSummary, type DashboardSummary } from '../services/dashboard';
 import { calibrationOffset } from '../services/digitalTwin';
+import { settleWithin, type Sourced } from '../services/fallback';
 import { fetchPipeline, saveCandidateStage, type PipelineCandidate, type PipelineStage } from '../services/pipeline';
 import { getRemote } from '../services/remote';
 import {
@@ -34,7 +36,9 @@ import {
   fetchActiveBottleneckAlerts,
   fetchHealingHistory,
   reopenBottleneckAlert,
+  requestDiagnosis,
   type BottleneckAlert,
+  type DiagnosisResult,
   type HealingRecord,
   type SuggestedFix,
 } from '../services/selfHealing';
@@ -77,7 +81,16 @@ type Workspace = {
   dismissAlert: (alert: BottleneckAlert) => void;
   /** Brings back an alert that was dismissed without a fix. */
   reopenAlert: (alertId: string) => void;
+  /**
+   * Approves a fix. Resolves once the server confirms, or after 4 s with the fix shown as applied
+   * (it is taken back if the server then refuses), so the button never spins for long.
+   */
   approveFix: (alert: BottleneckAlert, fix: SuggestedFix) => Promise<void>;
+  /**
+   * Has the Optimization Agent diagnose a campaign behind its target; a bottleneck it finds becomes
+   * an open alert. Says whether the answer was live or precomputed.
+   */
+  diagnoseCampaign: (campaignId: string) => Promise<Sourced<DiagnosisResult>>;
   /**
    * Moves a card to another stage. Returns `null` when nothing changed. If the change can't be
    * saved, the card goes back and `onFailed` is called.
@@ -86,6 +99,8 @@ type Workspace = {
   undoMove: (move: PipelineMove) => void;
   /** Shortlisting in the matched-candidates deck sends a not-yet-interviewed candidate to interview. */
   shortlistCandidate: (candidateId: string) => PipelineMove | null;
+  /** Skipping in the deck is saved, so the deck doesn't offer the candidate again. */
+  skipCandidate: (candidateId: string) => void;
   launchCampaign: (draft: CampaignDraft) => Promise<CampaignSummary>;
   /** How each campaign is set up today, by campaign id. */
   campaignSetups: Record<string, CampaignDraft>;
@@ -115,6 +130,7 @@ const WorkspaceContext = createContext<Workspace | null>(null);
  * made on one screen (a shortlist, a new campaign) is already there on the next.
  */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { language } = useI18n();
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [matchedCandidates, setMatchedCandidates] = useState<Candidate[] | null>(null);
@@ -328,19 +344,57 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const approveFix = useCallback(
     async (alert: BottleneckAlert, fix: SuggestedFix) => {
-      const events = await approveSuggestedFix(alert.id, fix.id);
-      setApprovals((current) => ({ ...current, [alert.id]: { fixId: fix.id, at: new Date().toISOString() } }));
+      const outcome = await settleWithin(approveSuggestedFix(alert.id, fix.id));
+      const approvedAt = new Date().toISOString();
+      let setupBefore: CampaignDraft | undefined;
+      setApprovals((current) => ({ ...current, [alert.id]: { fixId: fix.id, at: approvedAt } }));
       // The Orchestrator applied the change, so the campaign's setup (and the Digital Twin's baseline) follows.
       const { patch } = fix;
       if (patch) {
         setCampaignSetups((current) => {
           const setup = current[alert.campaignId];
+          setupBefore = setup;
           return setup ? { ...current, [alert.campaignId]: { ...setup, ...patch } } : current;
         });
       }
-      recordOutcome(events, { kind: 'fixApplied', actor: 'orchestrator', campaignId: alert.campaignId, fix: fix.actionLabel });
+      const logged = (events: AgentEvent[] | null) =>
+        recordOutcome(events, { kind: 'fixApplied', actor: 'orchestrator', campaignId: alert.campaignId, fix: fix.actionLabel });
+      if (outcome.status === 'done') {
+        logged(outcome.value);
+        return;
+      }
+      // Slower than the deadline: shown as applied now, confirmed (or taken back) when the server answers.
+      outcome.pending.then(logged, (error: unknown) => {
+        console.warn('[workspace] The fix was not applied after all.', error);
+        setApprovals((current) => (current[alert.id]?.at === approvedAt ? withoutKey(current, alert.id) : current));
+        const before = setupBefore;
+        if (patch && before) setCampaignSetups((current) => ({ ...current, [alert.campaignId]: before }));
+      });
     },
     [recordOutcome],
+  );
+
+  const diagnoseCampaign = useCallback(
+    async (campaignId: string): Promise<Sourced<DiagnosisResult>> => {
+      const open = openAlerts.find((alert) => alert.campaignId === campaignId);
+      if (open) return { data: { alert: open, events: null, source: 'existing' }, source: 'live' };
+      const campaign = summary?.campaigns.find((item) => item.id === campaignId);
+      const result = await requestDiagnosis(campaignId, {
+        campaignName: campaign?.title ?? { en: campaignId, vi: campaignId },
+        setup: campaignSetups[campaignId] ?? null,
+        matchRate: campaign?.matchRate ?? 0,
+        targetMatchRate: campaign?.targetMatchRate ?? 0,
+      });
+      const { alert, events, source } = result.data;
+      if (alert) {
+        setAllAlerts((current) => (current.some((item) => item.id === alert.id) ? current : [alert, ...current]));
+        if (source !== 'existing') {
+          recordOutcome(events, { kind: 'bottleneckFlagged', actor: 'selfHealing', campaignId, issue: alert.title });
+        }
+      }
+      return result;
+    },
+    [openAlerts, summary, campaignSetups, recordOutcome],
   );
 
   /** Puts a moved card back where it was, unless it has moved again since. */
@@ -408,9 +462,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [moveCandidate],
   );
 
+  const skipCandidate = useCallback((candidateId: string) => {
+    // The deck has already moved on; a skip that isn't saved only means the candidate comes back next time.
+    skipMatchedCandidate(FEATURED_CAMPAIGN_ID, candidateId).catch((error: unknown) => {
+      console.warn('[workspace] Could not save the skip.', error);
+    });
+  }, []);
+
   const launchCampaign = useCallback(
     async (draft: CampaignDraft) => {
-      const { campaign, events } = await launchCampaignWithEvents(draft);
+      const { campaign, events } = await launchCampaignWithEvents(draft, language);
       setSummary(
         (current) =>
           current && {
@@ -430,7 +491,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       });
       return campaign;
     },
-    [recordOutcome],
+    [recordOutcome, language],
   );
 
   const applyCampaignSetup = useCallback(
@@ -455,9 +516,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       dismissAlert,
       reopenAlert,
       approveFix,
+      diagnoseCampaign,
       moveCandidate,
       undoMove,
       shortlistCandidate,
+      skipCandidate,
       launchCampaign,
       campaignSetups,
       twinOffsets,
@@ -482,9 +545,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       dismissAlert,
       reopenAlert,
       approveFix,
+      diagnoseCampaign,
       moveCandidate,
       undoMove,
       shortlistCandidate,
+      skipCandidate,
       launchCampaign,
       campaignSetups,
       twinOffsets,

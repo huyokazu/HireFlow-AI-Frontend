@@ -9,6 +9,7 @@ import { AppHeader } from '../components/layout/AppHeader';
 import { ScreenContainer } from '../components/layout/ScreenContainer';
 import { SelfHealingAlertCard } from '../components/SelfHealingAlert';
 import { CampaignMonitorPanel, type MonitorStatus } from '../components/selfHealing/CampaignMonitorPanel';
+import { DiagnosePanel } from '../components/selfHealing/DiagnosePanel';
 import { HealingLogPanel } from '../components/selfHealing/HealingLogPanel';
 import { Button } from '../components/ui/Button';
 import { STAGGER_MS } from '../components/ui/motion';
@@ -38,12 +39,13 @@ export function SelfHealingScreen() {
     approvals,
     healingLog,
     approveFix,
+    diagnoseCampaign,
     dismissAlert,
     reopenAlert,
     pausedAgents,
     setPausedAgents,
   } = useWorkspace();
-  const campaigns = summary?.campaigns ?? [];
+  const campaigns = useMemo(() => summary?.campaigns ?? [], [summary]);
 
   // Open alerts win over fixes in progress: they're the ones that need a decision.
   const statuses = useMemo(() => {
@@ -54,6 +56,20 @@ export function SelfHealingScreen() {
     for (const alert of openAlerts) map[alert.campaignId] = alert.severity;
     return map;
   }, [healingLog, openAlerts]);
+
+  // What the Optimization Agent can look at: behind target, with nothing flagged or being fixed.
+  const diagnosable = useMemo(
+    () =>
+      campaigns
+        .filter(
+          (campaign) =>
+            campaign.matchRate < campaign.targetMatchRate &&
+            !statuses[campaign.id] &&
+            !alerts.some((alert) => alert.campaignId === campaign.id),
+        )
+        .map((campaign) => campaign.id),
+    [campaigns, statuses, alerts],
+  );
 
   return (
     <ScreenContainer>
@@ -107,6 +123,12 @@ export function SelfHealingScreen() {
                 </View>
                 <Text className="text-sm text-slate-500 dark:text-slate-400">{t.selfHealingPage.openAlertsHint}</Text>
               </Animated.View>
+
+              {!pausedAgents.selfHealing && (
+                <Animated.View entering={FadeInDown.delay(ALERTS_DELAY - 30).duration(450)}>
+                  <DiagnosePanel campaignIds={diagnosable} onDiagnose={diagnoseCampaign} />
+                </Animated.View>
+              )}
 
               {alerts.length === 0 ? (
                 <AllClear campaigns={campaigns.length} />
